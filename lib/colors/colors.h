@@ -1,4 +1,25 @@
-//This is just to offload color definitions to another file so I don't need to scroll so much in the main file.
+/*
+This is a quick library that provides some commonly used functions for using 
+32bit colors like in the Adafruit_NeoPixel library. I also have a bunch of
+standard color definitions and an array of rainbows for use in lighting projects
+
+Copyright 2019 - kiyoshigawa - tim@twa.ninja
+
+*/
+/*
+ * This library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #ifndef colors_h
 #define colors_h
@@ -415,40 +436,40 @@ const rainbow r_gw = {
 
 //this is an array of all the rainbows above for use in whatever lighting animation switchers you have:
 const uint16_t num_rainbows = 34;
-const rainbow rb_array[num_rainbows] = {r_off,                    //0
-										r_on,                     //1
-										r_vu,                     //2
-										r_red,                    //3
-										r_orange,                 //4
-										r_yellow,                 //5
-										r_yellow_green,           //6
-										r_green,                  //7
-										r_green_blue,             //8
-										r_sky_blue,               //9
-										r_deep_blue,              //10
-										r_blue,                   //11
-										r_purple_blue,            //12
-										r_purple,                 //13
-										r_dark_purple,            //14
-										r_dark_grey,              //15
-										r_dark_red_pattern,       //16
-										r_dark_yellow_pattern,    //17
-										r_dark_sky_blue_pattern,  //18
-										r_dark_purple_pattern,    //19
-										r_dark_green_pattern,     //20
-										r_dark_blue_pattern,      //21
-										r_white_grey_pattern,     //22
-										r_roygbiv,                //23
-										r_double_roygbiv,         //24
-										r_rby,                    //25
-										r_ogp,                    //26
-										r_rgb,                    //27
-										r_by,                     //28
-										r_rb,                     //29
-										r_ob,                     //30
-										r_bw,                     //31
-										r_rw,                     //32
-										r_gw,                     //33
-										};
-
+const rainbow rb_array[num_rainbows] = {
+	r_off,                    //0
+	r_on,                     //1
+	r_vu,                     //2
+	r_red,                    //3
+	r_orange,                 //4
+	r_yellow,                 //5
+	r_yellow_green,           //6
+	r_green,                  //7
+	r_green_blue,             //8
+	r_sky_blue,               //9
+	r_deep_blue,              //10
+	r_blue,                   //11
+	r_purple_blue,            //12
+	r_purple,                 //13
+	r_dark_purple,            //14
+	r_dark_grey,              //15
+	r_dark_red_pattern,       //16
+	r_dark_yellow_pattern,    //17
+	r_dark_sky_blue_pattern,  //18
+	r_dark_purple_pattern,    //19
+	r_dark_green_pattern,     //20
+	r_dark_blue_pattern,      //21
+	r_white_grey_pattern,     //22
+	r_roygbiv,                //23
+	r_double_roygbiv,         //24
+	r_rby,                    //25
+	r_ogp,                    //26
+	r_rgb,                    //27
+	r_by,                     //28
+	r_rb,                     //29
+	r_ob,                     //30
+	r_bw,                     //31
+	r_rw,                     //32
+	r_gw,                     //33
+};
 #endif

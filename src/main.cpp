@@ -23,12 +23,11 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #include <Adafruit_NeoPixel.h>
 #include <colors.h>
 #include <lighting_control.h>
+#include <MIDIController.h>
 #include <oMIDItone.h>
 
 void setup() {
-  // put your setup code here, to run once:
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
 }

@@ -1,12 +1,27 @@
 /*
 I'll copy over the comments when it's finished
+Copyright 2019 - kiyoshigawa - tim@twa.ninja
 */
+
+/*
+ * This library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <lighting_control.h>
 
 /* ----- BEGIN ANIMATION CLASS FUNCTIONS -----*/
 
-//constructor function - assigns default values based on lighting mode:
 Animation::Animation(uint16_t * led_array, uint16_t num_leds_in_array, uint16_t lighting_mode, rainbow bg_colors, rainbow fg_colors, rainbow trigger_event_colors, uint32_t update_interval){
 	//set values based on the init inputs first:
 	led_positions = led_array;
@@ -29,10 +44,6 @@ Animation::Animation(uint16_t * led_array, uint16_t num_leds_in_array, uint16_t 
 
 /* ----- PUBLIC FUNCTIONS BELOW ----- */
 
-//this should be called after updating the lighting mode. It will reset everything to the defaults based on the lighting mode changes.
-//If you want to switch to specific rainbow colors, offsets, etc., do it after the init.
-//Init will generate initial colors for the led_color_array based on the current settings.
-//It will also always reset the last_animation_step time for immediate changes to be shown.
 void Animation::init(){
 	//set defaults for all variables, and adjust only the ones that need to be adjusted in the if statements below:
 	current_bg_rainbow_color = 0;
@@ -111,7 +122,6 @@ void Animation::init(){
 	last_animation_step = 0;
 }
 
-//this should be called by the LightingControl object automatically to run the animations. Doing it manually won't guarantee the animation is displayed.
 void Animation::update(){
 	if(last_animation_step > min_time_between_updates){
 		//update background first.
@@ -168,7 +178,6 @@ void Animation::update(){
 	} //timing check if statement
 }
 
-//this can be called by programs to trigger events, such as LM_SHOTs or LM_COLOR_PULSES - what happens depends on the lighting_mode
 void Animation::trigger_event(uint16_t trigger_type){
 	//this can only happen once per frame, so it doesn't matter if you call it once or 200 times during a frame.
 	if(trigger_type == LC_TRIGGER_BG){
@@ -306,14 +315,12 @@ void Animation::trigger_event(uint16_t trigger_type){
 	}
 }
 
-//this will change the lighting mode, triggering an init(), and resetting all values to their defaults for that lighting mode:
 void Animation::change_lighting_mode(uint16_t new_lighting_mode){
 	bg_mode = new_lighting_mode & LC_BG_MASK;
 	fg_mode = new_lighting_mode & LC_FG_MASK;
 	init();
 }
 
-//these will change the animation to use another rainbow of the specified type. All updates performed after this will use the new rainbow colors from the next frame.
 void Animation::change_rainbow(uint8_t type, rainbow new_rainbow, uint16_t new_rainbow_position){
 	if(type == LC_BG){
 		bg_rainbow = new_rainbow;
@@ -327,7 +334,6 @@ void Animation::change_rainbow(uint8_t type, rainbow new_rainbow, uint16_t new_r
 	}
 }
 
-//this will change the animation's offsets. This can be used for manual movement of any offsettable animation, such as the LC_BG_RAINBOW_FIXED, or LC_FG_MARQUEE_SOLID_FIXED
 void Animation::change_offset(uint8_t type, int32_t new_offset, int32_t alternate_max_value){
 	//if an alternate_max_value is used, map the new_offset relative to the alternate_max_value onto the typical range from 0 to LC_MAX_OFFSET.
 	//the alternate_max_value lets you use, for example, the maximum analog_read value of 1024 to set the offset instead of needing to convert it beforehand to be a #/36000.
@@ -344,10 +350,10 @@ void Animation::change_offset(uint8_t type, int32_t new_offset, int32_t alternat
 	}
 }
 
-//these return the current fg and bg animation modes:
 uint16_t Animation::current_bg_mode(){
 	return bg_mode;
 }
+
 uint16_t Animation::current_fg_mode(){
 	return fg_mode;
 }
@@ -355,8 +361,6 @@ uint16_t Animation::current_fg_mode(){
 /* ----- END PUBLIC FUNCTIONS ----- */
 /* ----- PRIVATE FUNCTIONS BELOW ----- */
 
-//this will update the trigger animations in the active_triggers array and render the effected LEDs.
-//Note the more recent trigger events will override older if they are on the same LEDs.
 void Animation::update_trigger_animations(){
 	//update bg_event based on modes:
 	if(bg_event_has_occurred){
@@ -545,7 +549,6 @@ void Animation::update_trigger_animations(){
 	}//if num_trigger_events > 0
 }//update_trigger_animations()
 
-//this will add a new trigger animation to the active_triggers[] array.
 void Animation::add_trigger_event(TriggerEvent event){
 	//make sure there is room for another animation
 	if(num_trigger_events < MAX_TRIGGER_EVENTS){
@@ -564,7 +567,6 @@ void Animation::add_trigger_event(TriggerEvent event){
 	}
 }
 
-//this will remove any trigger events whose event_has_completed flag is set to true and shift down the remaining trigger events.
 void Animation::clean_trigger_events(){
 	//this will need to check the active trigger events and remove one if it is present.
 	for(int event_num = 0; event_num<num_trigger_events; event_num++){
@@ -584,15 +586,12 @@ void Animation::clean_trigger_events(){
 	}
 }
 
-//this will fill an LED array with a solid color.
 void Animation::fill_solid(uint32_t * led_array, uint16_t num_leds, uint32_t color){
 	for(int i=0; i<num_leds; i++){
 		led_array[i] = color;
 	}
 }
 
-//this will populate an LED array with a rainbow with an origin based on an offset value,
-//and an additional offset based on the number of frames out of a total number of frames.
 void Animation::fill_rainbow(uint32_t * led_array, uint16_t num_leds, rainbow rainbow, int32_t origin_offset, uint32_t current_frame, uint32_t total_frames){
 	//first we need to use the offset and frame values to determine where the pure rainbow colors begin as an offset from the origin:
 	int32_t color_offset_start_position = 0;
@@ -690,8 +689,6 @@ void Animation::fill_rainbow(uint32_t * led_array, uint16_t num_leds, rainbow ra
 	} //rainbow color for loop
 }
 
-//this will populate an LED array with a marquee with an origin based on an offset value,
-//and an additional offset based on the number of frames out of a total number of frames.
 void Animation::fill_marquee(uint32_t * led_array, uint16_t num_leds, uint32_t color, int32_t origin_offset, uint32_t current_frame, uint32_t total_frames){
 	//first we need to use the offset and frame values to determine where the first marquee pip begins as an offset from the origin:
 	int32_t color_offset_start_position = 0;
@@ -803,8 +800,6 @@ void Animation::fill_marquee(uint32_t * led_array, uint16_t num_leds, uint32_t c
 	} //marquee subpixel for loop
 }
 
-//this will populate a VU-meter style animation that is entirely dependent on setting the external offset value.
-//it wil render the rainbow up to the offset, and leave the background running above the offset
 void Animation::fill_vu_meter(uint32_t * led_array, uint16_t num_leds, rainbow rainbow, int32_t origin_offset){
 	//we'll need a temporary color array before we overwrite the actual Animation's led_color_array.
 	uint32_t temp_color_array[num_leds];
@@ -847,7 +842,6 @@ void Animation::fill_vu_meter(uint32_t * led_array, uint16_t num_leds, rainbow r
 	}
 }
 
-//this will return an adjusted color based on the current/total frame ratio between two colors of a rainbow.
 uint32_t Animation::slow_fade_color_adjust(rainbow rainbow, uint8_t current_color_position, uint32_t current_frame, uint32_t total_frames){
 	uint32_t current_color = rainbow.colors[current_color_position];
 	uint8_t next_color_position = current_color_position + 1;
@@ -859,7 +853,6 @@ uint32_t Animation::slow_fade_color_adjust(rainbow rainbow, uint8_t current_colo
 	return adjusted_color;
 }
 
-//this will increment the current_frames of all types until total_frames and then reset it to 0.
 void Animation::increment_frame(){
 	//increment background related info
 	current_bg_frame++;
@@ -904,7 +897,6 @@ void Animation::increment_frame(){
 	clean_trigger_events();
 }
 
-//this will increment the current current_bg_rainbow_color until overflow and then return to color 0
 void Animation::increment_bg_rainbow(){
 	current_bg_rainbow_color++;
 	if(current_bg_rainbow_color >= bg_rainbow.num_colors){
@@ -912,7 +904,6 @@ void Animation::increment_bg_rainbow(){
 	}
 }
 
-//this will increment the current current_bg_rainbow_color until overflow and then return to color 0
 void Animation::increment_fg_rainbow(){
 	current_fg_rainbow_color++;
 	if(current_fg_rainbow_color >= fg_rainbow.num_colors){
@@ -920,7 +911,6 @@ void Animation::increment_fg_rainbow(){
 	}
 }
 
-//this will increment the current current_trigger_rainbow_color until overflow and then return to color 0
 void Animation::increment_trigger_rainbow(){
 	current_trigger_rainbow_color++;
 	if(current_trigger_rainbow_color >= trigger_rainbow.num_colors){
@@ -928,7 +918,6 @@ void Animation::increment_trigger_rainbow(){
 	}
 }
 
-//this will adjust the offset number so that it is always within bounds
 uint32_t Animation::correct_offset(int32_t origin_offset){
 	int32_t corrected_offset = origin_offset;
 	//first check for and correct any out of bounds offsets.
@@ -951,7 +940,6 @@ uint32_t Animation::correct_offset(int32_t origin_offset){
 
 /* ----- BEGIN LIGHTINGCONTROL CLASS FUNCTIONS -----*/
 
-//constructor function
 LightingControl::LightingControl(Adafruit_NeoPixel *LED_controller, uint8_t max_brightness){
 	//set the strip variable for the controller to the referenced Adafruit_NeoPixel object
 	strip = LED_controller;
@@ -960,7 +948,6 @@ LightingControl::LightingControl(Adafruit_NeoPixel *LED_controller, uint8_t max_
 
 /* ----- PUBLIC FUNCTIONS BELOW ----- */
 
-//this should be called during setup to initialize and blank the Adafruit_NeoPixel led strip prior to doing anything else.
 void LightingControl::init(){
 	//this just makes sure the strip.begin() function got called.
 	strip->begin();
@@ -972,7 +959,6 @@ void LightingControl::init(){
 	num_current_animations = 0;
 }
 
-//This needs to be called regularly to update all the animations on the lighting controller
 int LightingControl::update(){
 	if(last_update > LC_DEFAULT_REFRESH_RATE){
 		//this will iterate through any active Animation objects and update the LEDs under the Animation object's control
@@ -993,7 +979,6 @@ int LightingControl::update(){
 	return LC_STRIP_NOT_WRITTEN;
 }
 
-//this will add an animaton to the lighting controller so the update function will know which animations to run.
 void LightingControl::add_animation(Animation * new_animation){
 	if(num_current_animations < MAX_ANIMATIONS){
 		//this will need to add the animation if it is not present, and then it will still need to call an Animation::init() even if it is already present.
@@ -1022,7 +1007,6 @@ void LightingControl::add_animation(Animation * new_animation){
 	}
 }
 
-//this will remove an animation from the lighting controller if it's presently on it, causing the animation to stop operating on the LEDs.
 void LightingControl::rm_animation(Animation * animation_to_be_removed){
 	//this will need to check the active animations and remove one if it is present.
 	int16_t animation_position = check_animations(animation_to_be_removed);
@@ -1050,8 +1034,6 @@ void LightingControl::rm_animation(Animation * animation_to_be_removed){
 /* ----- END PUBLIC FUNCTIONS ----- */
 /* ----- PRIVATE FUNCTIONS BELOW ----- */
 
-//this is a wrapper function to send corrected color values to the controller.
-//It is recommended to use this to send animation updates instead of sending them directly using strip.SetPixelColor().
 void LightingControl::set_corrected_color(uint16_t led, uint32_t color){
 	uint8_t red = (uint8_t)(color >> 16);
 	uint8_t green = (uint8_t)(color >> 8);
@@ -1059,7 +1041,6 @@ void LightingControl::set_corrected_color(uint16_t led, uint32_t color){
 	strip->setPixelColor(led, pgm_read_byte(&gamma8[red]), pgm_read_byte(&gamma8[green]), pgm_read_byte(&gamma8[blue]));
 }
 
-//this will check the currently_running_animations array to see if an animation object is already present:
 int16_t LightingControl::check_animations(Animation * animation){
 	for(int i=0; i<num_current_animations; i++){
 		if(currently_running_animations[i] == animation){

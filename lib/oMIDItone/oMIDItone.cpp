@@ -1,30 +1,63 @@
 /*
-See the .h file for the writeup, I'll copy it over when it's finished.
+This is the oMIDItone library, to send commands to a pair of MCP4151 digital
+pots to change the tone on an otamatone.
+
+I have set it up so there is one 100k pot, and 1 50k pot. The first 512 steps 
+oscilate the 50k pot between 0 and 1 so that I maintain the higher resolution,
+and the final 256 steps are directly modifying the 50k pot. Make sure the
+first pot pin is the 100k and the second is the 50k.
+
+It also has a pin for turning the sound on and off, and a pin for
+analog readings to correct the frequency being played.
+
+The oMIDItone class objects will be able to be set to output a specific 
+frequency that is within the range measured during their initialization, and 
+will try to maintain that frequency as long as pitch correction is enabled and 
+they have not been requested to turn off the note.
+
+The class object will also keep track of the lighting animation state (even 
+though the animation triggers will be controlled externally), as well 
+as control the servos that open and close the mouth whenever the sound output
+is set to be on or off.
+
+Copyright 2019 - kiyoshigawa - tim@twa.ninja
 */
+/*
+ * This library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <oMIDItone.h>
 
-//constructor function
 oMIDItone::oMIDItone(uint16_t signal_enable_optoisolator, uint16_t speaker_disable_optoisolator, uint16_t cs1, uint16_t cs2, uint16_t feedback, uint16_t servo_l_channel, uint16_t servo_r_channel, uint16_t servo_l_min, uint16_t servo_l_max, uint16_t servo_r_min, uint16_t servo_r_max, uint16_t led_head_array[NUM_LEDS_PER_HEAD], Animation * head_animation){
 	//Declare default values for variables:
-	current_note = NO_NOTE;
-	min_note = 0;
-	max_note = NUM_MIDI_NOTES;
-	freq_reading_index = 0;
-	current_freq = 0;
-	current_desired_freq = 0;
-	max_pitch_bend_offset = DEFAULT_MIDI_PITCH_BEND_SEMITONES*100 + DEFAULT_MIDI_PITCH_BEND_CENTS;
-	last_analog_read = 1024;
-	pitch_correction_is_enabled = FREQUENCY_CORRECTION_DEFAULT_ENABLE_STATE;
+	had_successful_init = false;
+	pitch_correction_is_enabled = FREQ_CORRECTION_DEFAULT_ENABLE_STATE;
 	servo_is_enabled = SERVO_DEFAULT_ENABLE_STATE;
-	pitch_correction_has_been_compromised = false;
-	for(int i=0; i<NUM_MIDI_CHANNELS; i++){
-		current_oMIDItone_pitch_bend[i] = CENTER_PITCH_BEND;
-	}
+	min_freq = 1000000U; //larger than MIDI note 0 by an order of magnitude
+	max_freq = 0;
 	for(int i=0; i<NUM_RESISTANCE_STEPS; i++){
 		measured_freqs[i] = 0;
 	}
+	for(int i=0; i<NUM_FREQ_READINGS; i++){
+		recent_freqs[i] = 0;
+	}
+	freq_reading_index = 0;
+	current_freq = NO_FREQ;
+	current_desired_freq = NO_FREQ;
+	last_analog_read = 1024;
 	current_resistance = 0;
+	pitch_correction_has_been_compromised = false;
 
 	//set pin variables based on constructor inputs:
 	signal_enable_optoisolator_pin = signal_enable_optoisolator;
@@ -35,6 +68,8 @@ oMIDItone::oMIDItone(uint16_t signal_enable_optoisolator, uint16_t speaker_disab
 
 	//set up an instanced ADC object for use in the code.
 	ADC *adc = new ADC();
+	//this line makes the unused variable go away, since we never otherwise directly interact with the adc, only the pointer to it.
+	(void)adc;
 
 	//Servo channels
 	l_channel = servo_l_channel;
@@ -55,8 +90,7 @@ oMIDItone::oMIDItone(uint16_t signal_enable_optoisolator, uint16_t speaker_disab
 
 /* ----- PUBLIC FUNCTIONS BELOW ----- */
 
-//this will init the pin modes and set up Serial if it's not already running.
-void oMIDItone::init(){
+void oMIDItone::init(void){
 	//start timers.
 	last_rising_edge = 0;
 	last_servo_update = 0;
@@ -68,7 +102,7 @@ void oMIDItone::init(){
 	//Init Servo Library
 	servo_controller.begin();
 	//change frequency to get ~1us per step:
-	servo_controller.setPWMFreq(PCA9685_FREQUENCY);
+	servo_controller.setPWMFreq(PCA9685_FREQ);
 	//need to wait a bit for the frequency change before continuing:
 	delay(10);
 	//set default values:
@@ -115,12 +149,10 @@ void oMIDItone::init(){
 	}
 }
 
-//This should be called during the loop, and it will update the note frequencies
-//and play notes as needed based on what current_note is set to.
-void oMIDItone::update(){
+void oMIDItone::update(void){
 	//if no note is set, disable the relay and stop checking the current frequency.
 	//don't bother with any of the rest if the head can't play the current_note
-	if(!can_play_note(current_note, current_oMIDItone_pitch_bend[current_channel])){
+	if(!can_play_freq(current_freq)){
 		//turn off the noise.
 		digitalWrite(signal_enable_optoisolator_pin, LOW);
 	} else {
@@ -130,9 +162,8 @@ void oMIDItone::update(){
 		}
 		//continuously measure the current frequency and adjust the resistance as needed.
 		if(pitch_correction_is_enabled){
-			measure_frequency();
+			measure_freq();
 		}
-
 		//and set the resistance to a jittered value based on the adjusted current_resistance.
 		set_jitter_resistance(current_resistance, JITTER);
 	}
@@ -149,81 +180,31 @@ void oMIDItone::update(){
 	}
 }
 
-//This will tell the oMIDItone to play the note. The note will continue to play until changed or until set to off.
-//note is a MIDI note number. 
-//If the note is out of the init value oMIDItone range, it will not play anything and return false
-//if the note can be played, it will begin playing immediately and return true
-bool oMIDItone::note_on(uint16_t note, uint16_t velocity, uint16_t channel){
-	if(can_play_note(note, current_oMIDItone_pitch_bend[channel])){
-		//set the current_note:
+bool oMIDItone::play_freq(uint32_t freq){
+	if(can_play_freq(freq)){
 		note_start_time = 0;
-		current_note = note;
-		current_velocity = velocity;
-		current_channel = channel;
-		//set the averaging function to the new frequency in anticipation of the change:
-		for(int i=0; i<NUM_FREQ_READINGS; i++){
-			recent_freqs[i] = current_desired_freq;
-		}
-		//set the current_resistance to a value that was previously measured as close to the desired note's frequency.
-		current_desired_freq = pitch_adjusted_frequency(current_note, current_oMIDItone_pitch_bend[current_channel]);
-		current_resistance = frequency_to_resistance(current_desired_freq);
-		update();
+		set_freq(freq);
 		return true;
-	} else {
-		current_note = NO_NOTE;
-		current_velocity = 0;
-		current_channel = NO_CHANNEL;
+	} else{
+		current_freq = NO_FREQ;
 		return false;
 	}
 }
 
-//This will set the oMIDItone to stop playing all notes.
-void oMIDItone::note_off(uint16_t note){
-	if(current_note == note){
-		current_note = NO_NOTE;
-		current_velocity = 0;
-		current_channel = NO_CHANNEL;
-		update();
+bool oMIDItone::update_freq(uint32_t freq){
+	if(can_play_freq(freq)){
+		set_freq(freq);
+		return true;
+	} else {
+		current_freq = NO_FREQ;
+		return false;
 	}
 }
-
-//this will set the pitch bend value. This will apply to any notes played on the oMIDItone.
-void oMIDItone::set_pitch_bend(int16_t pitch_bend_value, uint8_t pitch_bend_channel){
-		current_oMIDItone_pitch_bend[pitch_bend_channel] = pitch_bend_value;
-		//update the note if the pitch chift is on the same channel as the currently_playing_note:
-		if(pitch_bend_channel == current_channel){
-			current_desired_freq = pitch_adjusted_frequency(current_note, current_oMIDItone_pitch_bend[current_channel]);
-			//set the averaging function to the new frequency in anticipation of the change:
-			for(int i=0; i<NUM_FREQ_READINGS; i++){
-				recent_freqs[i] = current_desired_freq;
-			}
-			//set the current_resistance to a value that was previously measured as close to the desired note's frequency.
-			current_resistance = frequency_to_resistance(current_desired_freq);
-		}
-		update();
+void oMIDItone::sound_off(void){
+	current_freq = NO_FREQ;
+	update();
 }
 
-//this sets the max pitch bend for the oMIDItone, used when calculating all pitch bends:
-//pitch will bend to a max of semitones + cents above or below the currently_playing_note frequency based on currently_playing_pitch_bend
-void oMIDItone::set_max_pitch_bend(uint8_t semitones, uint8_t cents){
-	//do some error checking to make sure that this is vaid
-	if(semitones > MAX_PITCH_BEND_SEMITONES){
-		semitones = MAX_PITCH_BEND_SEMITONES;
-	} else if(semitones <= 0){
-		semitones = 1;
-	}
-	if(cents > MAX_PITCH_BEND_CENTS){
-		cents = MAX_PITCH_BEND_CENTS;
-	} else if(cents <= 0){
-		cents = 1;
-	}
-	//this is the max offset from the center in cents.
-	//Pitch bend can go from note-max_offset to note+max_offset.
-	max_pitch_bend_offset = semitones*100 + cents;
-}
-
-//this allows manual setting of servos when they are disabled by the above functions:
-//position is a value between 0 and 127, 0 being closed, 127 being open.
 void oMIDItone::set_servos(uint16_t position){
 	uint16_t l_servo_value = map(position, 0, 127, l_min, l_max);
 	uint16_t r_servo_value = map(position, 0, 127, r_min, r_max);
@@ -232,43 +213,31 @@ void oMIDItone::set_servos(uint16_t position){
 	pitch_correction_has_been_compromised = true;
 }
 
-//this will cancel the current pitch correction testing if anything disruptive happens during the testing to avoid incorrect corrections
-void oMIDItone::cancel_pitch_correction(){
+void oMIDItone::cancel_pitch_correction(void){
 	pitch_correction_has_been_compromised = true;
 }
 
-//This will return true if init was successful AND there is no current note playing.
-bool oMIDItone::is_running(){
-	if(had_successful_init){
+bool oMIDItone::is_ready(void){
+	if(had_successful_init && current_freq == NO_FREQ){
 		return true;
 	} else {
 		return false;
 	}
 }
 
-//This returns the note number that is currently playing or NO_NOTE if no note is currently playing.
-uint16_t oMIDItone::currently_playing_note(){
-	return current_note;
-}
-
-//this returns the current pitch bend value.
-uint16_t oMIDItone::currently_playing_pitch_bend(uint16_t channel){
-	return current_oMIDItone_pitch_bend[channel];
-}
-
-//these enable and disable frequency correction:
-void oMIDItone::enable_pitch_correction(){
+void oMIDItone::enable_pitch_correction(void){
 	pitch_correction_is_enabled = true;
 }
-void oMIDItone::disable_pitch_correction(){
+
+void oMIDItone::disable_pitch_correction(void){
 	pitch_correction_is_enabled = false;
 }
 
-//these enable and disable servos:
-void oMIDItone::enable_servos(){
+void oMIDItone::enable_servos(void){
 	servo_is_enabled = true;
 }
-void oMIDItone::disable_servos(){
+
+void oMIDItone::disable_servos(void){
 	//disable the servos in the open position:
 	servo_is_enabled = false;
 }
@@ -276,9 +245,7 @@ void oMIDItone::disable_servos(){
 /* ----- END PUBLIC FUNCTIONS ----- */
 /* ----- PRIVATE FUNCTIONS BELOW ----- */
 
-//This will play from 0 resistance value to 512 resistance value and note which resistances
-//correspond to which notes in the note matrix:
-bool oMIDItone::startup_test(){
+bool oMIDItone::startup_test(void){
 
 	//the first part is all manual control of the resistance value and the signal_enable_optoisolator_pin.
 
@@ -302,18 +269,18 @@ bool oMIDItone::startup_test(){
 
 	//Confirm the first rising edge before the timeout to make sure we are getting good data.
 	last_rising_edge = 0;
-	uint32_t startup_start_time = millis();
+	elapsedMillis startup_start_time = 0;
 
 	while(1){
 		if(is_rising_edge()){
 			last_rising_edge = 0;
-			last_frequency_measurement = 0;
+			last_freq_measurement = 0;
 			break;
 		}
 		//If it doesn't detect a first rising edge in time, return false so the rest of the controller can continue to function.
-		if((startup_start_time + TIME_TO_WAIT_FOR_INIT) < millis()){
+		if(startup_start_time > TIME_TO_WAIT_FOR_INIT){
 			digitalWrite(signal_enable_optoisolator_pin, LOW);
-			current_note = NO_NOTE;
+			current_freq = NO_FREQ;
 			return false;
 		}
 	}
@@ -373,14 +340,14 @@ bool oMIDItone::startup_test(){
 				#endif
 
 				//reset the timeout when a new frequency measurement has occurred.
-				last_frequency_measurement = 0;
+				last_freq_measurement = 0;
 				break; //break the while loop for this specific resistance value
 			}
 			//If it doesn't detect a rising edge in time mid frequency checking, set the value to the previous value and continue.
-			if(last_frequency_measurement > NOTE_TIMEOUT || last_rising_edge > NOTE_TIMEOUT*1000){
+			if(last_freq_measurement > NOTE_TIMEOUT || last_rising_edge > NOTE_TIMEOUT*1000){
 				measured_freqs[current_resistance] = measured_freqs[current_resistance-1];
 				//reset the timeout counter when breaking a loop for timeout.
-				last_frequency_measurement = 0;
+				last_freq_measurement = 0;
 				break; //break the while loop for this specific resistance value
 			}
 		} //while (1)
@@ -390,50 +357,23 @@ bool oMIDItone::startup_test(){
 	//End manual control of the signal_enable_optoisolator_pin and resistance number - from here on in, use note_on() and note_off()
 
 	//Set the max_note and min_note variables based on the frequencies measured:
-	uint32_t max_measured_freq = midi_freqs[0]; //set default to longest time in us, and adjust below:
-	uint32_t min_measured_freq = midi_freqs[NUM_MIDI_NOTES]; //set default to shortest time in us, and adjust below:
 	for(uint16_t i = JITTER; i <= NUM_RESISTANCE_STEPS-JITTER; i++){
-		if(measured_freqs[i] < max_measured_freq){
-			max_measured_freq = measured_freqs[i];
+		if(measured_freqs[i] < max_freq){
+			max_freq = measured_freqs[i];
 		}
-		if(measured_freqs[i] > min_measured_freq){
-			min_measured_freq = measured_freqs[i];
+		if(measured_freqs[i] > min_freq){
+			min_freq = measured_freqs[i];
 		}
 	}
 	#ifdef OMIDITONE_DEBUG
 		Serial.print("Min Measured Freq in us: ");
-		Serial.println(min_measured_freq);
+		Serial.println(min_freq);
 		Serial.print("Max Measured Freq in us: ");
-		Serial.println(max_measured_freq);
+		Serial.println(max_freq);
 	#endif
 
-	//set min_note:
-	for(uint16_t i=0; i<NUM_MIDI_NOTES; i++){
-		if(midi_freqs[i] < min_measured_freq){
-			//should go to the next note to leave room for variance
-			min_note = i+1;
-			break;
-		}
-	}
-
-	//set max_note:
-	for(uint16_t i=NUM_MIDI_NOTES-1; i>=0; i--){
-		if(midi_freqs[i] > max_measured_freq){
-			//should go to the next note to leave room for variance
-			max_note = i-1;
-			break;
-		}
-	}
-
-	#ifdef OMIDITONE_DEBUG
-		Serial.print("Initial Min MIDI note is: ");
-		Serial.println(min_note);
-		Serial.print("Initial Max MIDI note is: ");
-		Serial.println(max_note);
-	#endif
-
-	//if it makes it here the init was successful and we can move on to testing the available note range
-	if(min_note <= max_note){
+	//if it makes it here the init was successful, and the allowable frequency range is established
+	if(min_freq <= max_freq){
 		had_successful_init = true;
 	} else {
 		//only continue when the min and max note values make sense.
@@ -450,13 +390,24 @@ bool oMIDItone::startup_test(){
 	return true;
 }
 
-//this takes the frequency averaging code and puts it into a function to clean up the update function:
-void oMIDItone::measure_frequency(){
+void oMIDItone::set_freq(uint32_t freq){
+	//set the current_note:
+	current_desired_freq = freq;
+	//set the averaging function to the new frequency in anticipation of the change:
+	for(int i=0; i<NUM_FREQ_READINGS; i++){
+		recent_freqs[i] = current_desired_freq;
+	}
+	//set the current_resistance to a value that was previously measured as close to the desired note's frequency.
+	current_resistance = freq_to_resistance(current_desired_freq);
+	update();
+}
+
+void oMIDItone::measure_freq(void){
 	//this first bit is calculating the average continuously and storing it in current_freq
 	if(is_rising_edge()){
-		//sanity check on the reading - it should never be more than ALLOWABLE_FREQUENCY_READING_VARIANCE percent off of the desired frequency.
-		if( (last_rising_edge > (current_desired_freq*(100-ALLOWABLE_FREQUENCY_READING_VARIANCE)/100)) &&
-			(last_rising_edge < (current_desired_freq*(100+ALLOWABLE_FREQUENCY_READING_VARIANCE)/100))
+		//sanity check on the reading - it should never be more than ALLOWABLE_FREQ_READING_VARIANCE percent off of the desired frequency.
+		if( (last_rising_edge > (current_desired_freq*(100-ALLOWABLE_FREQ_READING_VARIANCE)/100)) &&
+			(last_rising_edge < (current_desired_freq*(100+ALLOWABLE_FREQ_READING_VARIANCE)/100))
 			){
 			//if things are compromised, reset the last_rising_edge and start over:
 			if(pitch_correction_has_been_compromised){
@@ -485,24 +436,22 @@ void oMIDItone::measure_frequency(){
 			#endif
 		}
 	}
-	//take more readings on init to get more accurate note values:
-	if(freq_reading_index >= NUM_FREQ_READINGS && current_note != NO_NOTE){
+	if(freq_reading_index >= NUM_FREQ_READINGS && current_freq != NO_FREQ){
 		//calculate a new average frequency
 		current_freq = average(recent_freqs, NUM_FREQ_READINGS);
 		//and reset the counter
 		freq_reading_index = 0;
 		//only when you've had a valid reading should the frequency be adjusted
-		adjust_frequency();
+		adjust_freq();
 		//also update the measured_freqs array to be correct for the current resistasnce.
 		//TIM: Leaving this commented out for now, seems to prevent drifting over time, but requires occasional hard resets
 		//measured_freqs[current_resistance] = current_freq;
 	}
 }
 
-//This is a function that will change the current_resistance to a different value if it is too far off from the current_frequency.
-void oMIDItone::adjust_frequency(){
+void oMIDItone::adjust_freq(void){
 	//the next bit will adjust the current jittered resistance value up or down depending on how close the current_freq is to the desired frequency of the current_note, and store it in the midi_to_resistance array
-	if(last_adjust_time > TIME_BETWEEN_FREQUENCY_CORRECTIONS){
+	if(last_adjust_time > TIME_BETWEEN_FREQ_CORRECTIONS){
 		//this determines the allowable range that the frequency can be in to avoid triggering a retune:
 
 		//this is the range of frequencies acceptable for the current pitch-bent note being played.
@@ -518,20 +467,20 @@ void oMIDItone::adjust_frequency(){
 				//prevent the value from overflowing:
 				current_resistance = JITTER;
 				//if it's bottoming out, increase the min note.
-				min_note++;
+				min_freq++;
 				#ifdef OMIDITONE_DEBUG
-					Serial.print("Note ");
-					Serial.print(current_note);
-					Serial.print(" bottomed out. min_note increased to ");
-					Serial.print(min_note);
+					Serial.print("Inverted frequency ");
+					Serial.print(current_freq);
+					Serial.print(" bottomed out. min_freq increased to ");
+					Serial.print(min_freq);
 					Serial.print(" on oMIDItone on relay pin");
 					Serial.println(signal_enable_optoisolator_pin);
 				#endif
 			}
 			last_adjust_time = 0;
 			#ifdef PITCH_VERBOSE_DEBUG
-				Serial.print("Note ");
-				Serial.print(current_note);
+				Serial.print("Inverted frequency ");
+				Serial.print(current_freq);
 				Serial.print(" resistance adjusted to ");
 				Serial.println(current_resistance);
 			#endif
@@ -542,20 +491,20 @@ void oMIDItone::adjust_frequency(){
 				//prevent the value from overflowing:
 				current_resistance = NUM_RESISTANCE_STEPS-JITTER;
 				//if it's topping out, reduce the max note:
-				max_note--;
+				max_freq--;
 				#ifdef OMIDITONE_DEBUG
-					Serial.print("Note ");
-					Serial.print(current_note);
+					Serial.print("Inverted frequency ");
+					Serial.print(current_freq);
 					Serial.print("is too high for reliable use. max_note decreased to ");
-					Serial.print(max_note);
+					Serial.print(max_freq);
 					Serial.print("on oMIDItone on relay pin");
 					Serial.println(signal_enable_optoisolator_pin);
 				#endif
 			}
 			last_adjust_time = 0;
 			#ifdef PITCH_VERBOSE_DEBUG
-				Serial.print("Note ");
-				Serial.print(current_note);
+				Serial.print("Inverted frequency ");
+				Serial.print(current_freq);
 				Serial.print(" resistance adjusted to ");
 				Serial.println(current_resistance);
 			#endif
@@ -563,71 +512,23 @@ void oMIDItone::adjust_frequency(){
 	}//if(last_adjustment_time > MIN_TIME_BETWEEN_FREQUENCY_CORRECTIONS)
 }
 
-//This will check if a frequency can be played by an initialized oMIDItone object. freq in us.
-bool oMIDItone::can_play_note(uint8_t note, int16_t pitch_bend){
+bool oMIDItone::can_play_freq(uint32_t freq){
 	//some initial conditions to return false immediately before doing the pitch adjusted frequency calculation to save time
 	if(!had_successful_init){
 		return false;
 	}
-	if(note == NO_NOTE){
+	if(freq == NO_FREQ){
 		return false;
 	}
-	if(pitch_bend == CENTER_PITCH_BEND){
-		if((note < max_note) && (note > min_note)){
-			return true;
-		} else {
-			return false;
-		}
-	}
-	//this takes the pitch_bend and maps it to the corresponding number of semitones, truncated
-	int32_t pitch_bend_offset = map(pitch_bend, -8192, 8192, -max_pitch_bend_offset, max_pitch_bend_offset)/100;
-	//this rounds up to the next semitone higher than the pitch bend and makes sure it is less than max note.
-	if( (pitch_bend_offset >= 0) && (note + (pitch_bend_offset+1) > max_note) ){
-		return true;
-	}
-	//this rounds down to the next semitone lower than the pitch bend and makes sure it is more than min note
-	if( (pitch_bend_offset < 0) && (note + (pitch_bend_offset-1) < min_note) ){
+	if(freq < max_freq && freq > min_freq){
 		return true;
 	}
 	return false;
 }
 
-//This adjusts a frequency to a pitch-bent value from the base note.
-//note will vary as a proportion of pitch_bend from -8192 to +8192 up to semitones half-step notes and cents cents max away from the note frequency.
-uint32_t oMIDItone::pitch_adjusted_frequency(uint8_t note, int16_t pitch_bend){
-	//First the trivial case of CENTER_PITCH_BEND:
-	if(pitch_bend == CENTER_PITCH_BEND){
-		return midi_freqs[note];
-	} else {
-		//this takes the pitch_bend and maps it to the corresponding number of cents
-		int32_t pitch_bend_offset = map(pitch_bend, -8192, 8192, -max_pitch_bend_offset, max_pitch_bend_offset);
-		//figure out how manu semitones away the pitch_bend_offset is:
-		//the +50/-50 is to make it round correctly by offsetting halfway to the next integer and letting c truncate in the right direction for me
-		int32_t num_semitones_bent;
-		if(pitch_bend_offset < 0){
-			num_semitones_bent = (pitch_bend_offset-50)/100;
-		} else {
-			num_semitones_bent = (pitch_bend_offset+50)/100;
-		}
-		//this calculates how many cents past the nearest note frequency we need to bend
-		int32_t leftover_cents = pitch_bend_offset - (num_semitones_bent*100);
-		//this calls out the nearest note that we will use for the cent offset so that it's within range of the cent_frequency_ratios table
-		uint8_t adjusted_note = note + num_semitones_bent;
-
-		//the inflated_ratio is the frequency times the frequency adjustment ratio 2^(cents/1200) times 1,000,000.
-		//this is multiplied by 1,000,000 so we can use integer math instead of floating point math to make things speedier
-		uint64_t inflated_ratio = (uint64_t)midi_freqs[adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
-		//and we need to divide by 1,000,000 to cancel out the inflation above to get the actual frequency we desire.
-		uint32_t adjusted_frequency = inflated_ratio/CENT_FREQUENCY_RATIO_MULTIPLIER;
-
-		return adjusted_frequency;
-	}
-}
-
-//This will open or close the mouth based on the current_velocity
-void oMIDItone::servo_update(){
-	//If the velocity is not 0, open the mouth to the max position:
-	if(current_velocity > 0 && current_note != NO_NOTE){
+void oMIDItone::servo_update(void){
+	//If the current_freq is not NO_FREQ, open the mouth to the max position:
+	if(current_freq != NO_FREQ){
 		servo_controller.setPWM(l_channel, 0, l_max);
 		servo_controller.setPWM(r_channel, 0, r_max);
 		pitch_correction_has_been_compromised = true;
@@ -639,9 +540,7 @@ void oMIDItone::servo_update(){
 	}
 }
 
-//This will constantly read the analog input and return true when it detects a rising edge signal.
-//It also updates the current and last rising edge time values.
-bool oMIDItone::is_rising_edge(){
+bool oMIDItone::is_rising_edge(void){
 	uint16_t current_analog_read = adc->analogRead(analog_feedback_pin);
 	if(last_rising_edge > MIN_TIME_BETWEEN_RISING_EDGE_MEASUREMENTS){
 		if( current_analog_read > RISING_EDGE_THRESHOLD && last_analog_read < RISING_EDGE_THRESHOLD){
@@ -656,7 +555,6 @@ bool oMIDItone::is_rising_edge(){
 	}
 }
 
-//a simple averaging function:
 uint32_t oMIDItone::average(uint32_t * array, uint16_t num_elements){
 	uint32_t total = 0;
 	for(uint16_t i=0; i<num_elements; i++){
@@ -665,12 +563,11 @@ uint32_t oMIDItone::average(uint32_t * array, uint16_t num_elements){
 	return total/num_elements;
 }
 
-//this function will find the first resistance value that was measured as being very near the desired frequency.
-uint16_t oMIDItone::frequency_to_resistance(uint16_t frequency){
+uint16_t oMIDItone::freq_to_resistance(uint16_t freq){
 	//iterate through the measured_freqs array and check for when the frequency has gone over the desired frequency by one step.
 	for(int i=JITTER+2; i<NUM_RESISTANCE_STEPS-JITTER-2; i++){
 		//If the frequency if higher than the current note (less us) then set the midi_to_resistance value and increment the note:
-		if(measured_freqs[i] < frequency){
+		if(measured_freqs[i] < freq){
 			return i;
 		}
 	}
@@ -678,7 +575,6 @@ uint16_t oMIDItone::frequency_to_resistance(uint16_t frequency){
 	return NUM_RESISTANCE_STEPS-JITTER;
 }
 
-//this introduces jittered resistance settings, and should be called every loop to keep the jitter working:
 void oMIDItone::set_jitter_resistance(uint16_t resistance, uint16_t jitter){
 	uint16_t current_jitter = random(jitter);
 	uint16_t positive = random(1);
@@ -689,8 +585,6 @@ void oMIDItone::set_jitter_resistance(uint16_t resistance, uint16_t jitter){
 	}
 }
 
-//this will take a uint16_t number and set the total resistance value to between 0 and 768 on the board.
-//Lots of hard coded values here, should probably fix later, but oh well.
 void oMIDItone::set_resistance(uint16_t resistance){
   //The case where we need to oscillate the 50k pot to increase resolution:
   if(resistance >= 0 && resistance <= 512){
@@ -716,7 +610,6 @@ void oMIDItone::set_resistance(uint16_t resistance){
   }
 }
 
-//this will set the CS_pin digital pot's wiper to a value based on byte 1 and byte 2
 void oMIDItone::set_pot(uint16_t CS_pin, uint16_t command_byte){
 	digitalWrite(CS_pin, LOW); //select chip
 	uint16_t byte_high = command_byte >> 8;

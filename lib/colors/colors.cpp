@@ -1,13 +1,32 @@
-//This is just to offload color definitions to another file so I don't need to scroll so much in the main file.
+/*
+This is a quick library that provides some commonly used functions for using 
+32bit colors like in the Adafruit_NeoPixel library. I also have a bunch of
+standard color definitions and an array of rainbows for use in lighting projects
+
+Copyright 2019 - kiyoshigawa - tim@twa.ninja
+
+*/
+/*
+ * This library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <colors.h>
 
-//simple function for converting RGB into uint32_t used by Adafruit_NeoPixel
 uint32_t Color(uint8_t r, uint8_t g, uint8_t b){
 	return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
 }
 
-//this is a general purpose function for mapping a color transition between two colors (uint32_t) based on a desired position, a starting position, and an ending position.
 uint32_t color_map(int x, int in_min, int in_max, uint32_t start_color, uint32_t end_color){
 
 	//assign the colors based on the above.

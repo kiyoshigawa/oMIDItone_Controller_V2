@@ -1,9 +1,27 @@
 /*
-This is a lighting control object built for WS2812 strips using the Adafruit Neopixel library.
-It's mostly just a wrapper around a bunch of common lighting functions I've used in my projects in the past to make it more general and easier to insert into other projects.
-By: kiyoshigawa
-Date: 2019-09-29
+This is a lighting control object built for WS2812 strips using the Adafruit 
+Neopixel library.
+It's mostly just a wrapper around a bunch of common lighting functions I've used 
+in my projects in the past to make it more general and easier to insert into 
+other projects.
+
+Copyright 2019 - kiyoshigawa - tim@twa.ninja
 */
+
+/*
+ * This library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #ifndef LIGHTING_CONTROL_H
 #define LIGHTING_CONTROL_H
