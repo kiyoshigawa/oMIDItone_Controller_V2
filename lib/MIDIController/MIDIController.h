@@ -77,6 +77,36 @@ const uint32_t cent_frequency_ratios[199] = {1058851, 1058240, 1057629, 1057018,
 
 //old stuff from the oMIDItone class that needs to be reintegrated into the new MIDIController class:
 
+//before init we need:
+
+    //Start the hardware MIDI:
+    MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
+
+//during init we need:
+
+	//initialize the pitch bend to the default value of no pitch bend:
+	for(int i=0; i<NUM_MIDI_CHANNELS; i++){
+		current_pitch_bend[i] = CENTER_PITCH_BEND;
+	}
+	pitch_has_changed = true;
+
+	//call out MIDI functions
+	usbMIDI.setHandleNoteOff(OnNoteOff);
+	usbMIDI.setHandleNoteOn(OnNoteOn);
+	usbMIDI.setHandlePitchChange(OnPitchChange);
+	usbMIDI.setHandleControlChange(OnControlChange);
+
+	//Hardware MIDI init.
+	MIDI.begin(MIDI_CHANNEL_OMNI);
+
+//during loop we need:
+
+	//This will read for MIDI notes and start/stop the notes based on MIDI input:
+	usbMIDI.read();
+	//This will check the hardware MIDI channels and start/stop the notes based on MIDI input.
+	read_hardware_MIDI();
+
+
 //this will set the pitch bend value. This will apply to any notes played on the oMIDItone.
 void set_pitch_bend(int16_t pitch_bend_value, uint8_t pitch_bend_channel);
 

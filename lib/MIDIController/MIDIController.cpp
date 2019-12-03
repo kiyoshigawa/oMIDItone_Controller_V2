@@ -93,4 +93,105 @@ void oMIDItone::set_max_pitch_bend(uint8_t semitones, uint8_t cents){
 	max_pitch_bend_offset = semitones*100 + cents;
 }
 
+//this is just a quick function to print the note array with some formatting:
+void print_current_note_array(){
+	#ifdef NOTE_DEBUG
+		if(num_current_notes > 0){
+			Serial.print("Notes: [");
+			if(num_current_notes > 0){
+				for(int i=0; i<num_current_notes-1; i++){
+					Serial.print(current_note_array[i]);
+					Serial.print(", ");
+				}
+			}
+			Serial.print(current_note_array[num_current_notes-1]);
+			Serial.println("]");
+		} else {
+			Serial.println("Notes: []");
+		}
+	#endif
+}
+
+//This will check to see if a note is in the current_note_array and return the position of the note if it finds one, or return NO_NOTE if it does not.
+int check_note(uint8_t note){
+	//Iterate through the array, and return the note position if it is found.
+	if(num_current_notes == 0){
+		return NO_NOTE;
+	} else {
+		for(int i=0; i<num_current_notes; i++){
+			if(current_note_array[i] == note){
+				return i;
+			}
+		}
+		//if no note is found, return NO_NOTE;
+		return NO_NOTE;
+	}
+}
+
+//This will add a new note to the end of the current_note_array, or relocate the note to the end if it is already in the array.
+//It will also add a velocity value corresponding to that note to the current_velocity_array.
+void add_note(uint8_t note, uint8_t velocity, uint8_t channel){
+	uint8_t note_position = check_note(note);
+	//if the note isn't already in the array, put it at the end of the array.
+	if(note_position == NO_NOTE){
+		current_note_array[num_current_notes] = note;
+		current_velocity_array[num_current_notes] = velocity;
+		current_channel_array[num_current_notes] = channel;
+		num_current_notes++;
+	} else {
+		//if it is in the array, put the note at the end and bend everything back down to where the note used to be.
+		for(int i=note_position; i<num_current_notes; i++){
+			current_note_array[i] = current_note_array[i+1];
+			current_velocity_array[i] = current_velocity_array[i+1];
+			current_channel_array[i] = current_channel_array[i+1];
+		}
+		current_note_array[num_current_notes-1] = note;
+		current_velocity_array[num_current_notes-1] = velocity;
+		current_channel_array[num_current_notes-1] = channel;
+	}
+}
+
+//If a note is in the current_note_array, this will remove it, and the corresponding velocity will be removed from the current_velocity_array
+//and then it will bend the rest of the values down to fill in the gap.
+void remove_note(uint8_t note){
+	uint8_t note_position = check_note(note);
+	//if the note is in the note array, remove it and bend down any other notes.
+	if(note_position != NO_NOTE){
+		for(int i=note_position; i<num_current_notes; i++){
+			current_note_array[i] = current_note_array[i+1];
+			current_velocity_array[i] = current_velocity_array[i+1];
+			current_channel_array[i] = current_channel_array[i+1];
+		}
+		num_current_notes--;
+	} else {
+		//Do nothing
+	}
+	//need to get the head to immediately stop playing the note as well:
+	for(int i=0; i<NUM_OMIDITONES; i++){
+		if(oms[i].currently_playing_note() == note){
+			oms[i].note_off(note);
+		}
+	}
+
+	//and finally change the head_order_array to match the pending_head_order_array when all notes are off
+	if(num_current_notes <= 0){
+		for(int i=0; i<NUM_OMIDITONES; i++){
+			head_order_array[i] = pending_head_order_array[i];
+		}
+	}
+}
+
+//this function moves the head in question to the end of the head_order_array, and shuffles the remaining heads down into its place.
+void pending_head_order_to_end(uint8_t head_number){
+	//don't need to iterate to the last one, because if the head_number is in the last position already, we're good
+	for(int i=0; i<NUM_OMIDITONES-1; i++){
+		if(pending_head_order_array[i] == head_number){
+			//set the current position to the next head in line
+			pending_head_order_array[i] = pending_head_order_array[i+1];
+			//and move the head in question down the line until it's in the last place
+			pending_head_order_array[i+1] = head_number;
+		}
+	}
+}
+
 */
