@@ -22,7 +22,8 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 /* ----- BEGIN ANIMATION CLASS FUNCTIONS -----*/
 
-Animation::Animation(uint16_t * led_array, uint16_t num_leds_in_array, uint16_t lighting_mode, rainbow bg_colors, rainbow fg_colors, rainbow trigger_event_colors, uint32_t update_interval){
+Animation::Animation(uint16_t * led_array, uint16_t num_leds_in_array, uint16_t lighting_mode, rainbow bg_colors, rainbow fg_colors, rainbow trigger_event_colors, uint32_t update_interval)
+{
 	//set values based on the init inputs first:
 	led_positions = led_array;
 	num_leds = num_leds_in_array;
@@ -44,7 +45,8 @@ Animation::Animation(uint16_t * led_array, uint16_t num_leds_in_array, uint16_t 
 
 /* ----- PUBLIC FUNCTIONS BELOW ----- */
 
-void Animation::init(){
+void Animation::init()
+{
 	//set defaults for all variables, and adjust only the ones that need to be adjusted in the if statements below:
 	current_bg_rainbow_color = 0;
 	current_fg_rainbow_color = 0;
@@ -122,7 +124,8 @@ void Animation::init(){
 	last_animation_step = 0;
 }
 
-void Animation::update(){
+void Animation::update()
+{
 	if(last_animation_step > min_time_between_updates){
 		//update background first.
 		if(bg_mode == LC_BG_OFF){
@@ -178,7 +181,8 @@ void Animation::update(){
 	} //timing check if statement
 }
 
-void Animation::trigger_event(uint16_t trigger_type){
+void Animation::trigger_event(uint16_t trigger_type)
+{
 	//this can only happen once per frame, so it doesn't matter if you call it once or 200 times during a frame.
 	if(trigger_type == LC_TRIGGER_BG){
 		bg_event_has_occurred = true;
@@ -315,13 +319,15 @@ void Animation::trigger_event(uint16_t trigger_type){
 	}
 }
 
-void Animation::change_lighting_mode(uint16_t new_lighting_mode){
+void Animation::change_lighting_mode(uint16_t new_lighting_mode)
+{
 	bg_mode = new_lighting_mode & LC_BG_MASK;
 	fg_mode = new_lighting_mode & LC_FG_MASK;
 	init();
 }
 
-void Animation::change_rainbow(uint8_t type, rainbow new_rainbow, uint16_t new_rainbow_position){
+void Animation::change_rainbow(uint8_t type, rainbow new_rainbow, uint16_t new_rainbow_position)
+{
 	if(type == LC_BG){
 		bg_rainbow = new_rainbow;
 		current_bg_rainbow_color = new_rainbow_position;
@@ -334,7 +340,8 @@ void Animation::change_rainbow(uint8_t type, rainbow new_rainbow, uint16_t new_r
 	}
 }
 
-void Animation::change_offset(uint8_t type, int32_t new_offset, int32_t alternate_max_value){
+void Animation::change_offset(uint8_t type, int32_t new_offset, int32_t alternate_max_value)
+{
 	//if an alternate_max_value is used, map the new_offset relative to the alternate_max_value onto the typical range from 0 to LC_MAX_OFFSET.
 	//the alternate_max_value lets you use, for example, the maximum analog_read value of 1024 to set the offset instead of needing to convert it beforehand to be a #/36000.
 	//this can be handy for things like the LC_FG_VU_METER animation, to directly map values based on a volume reading.
@@ -350,18 +357,21 @@ void Animation::change_offset(uint8_t type, int32_t new_offset, int32_t alternat
 	}
 }
 
-uint16_t Animation::current_bg_mode(){
+uint16_t Animation::current_bg_mode()
+{
 	return bg_mode;
 }
 
-uint16_t Animation::current_fg_mode(){
+uint16_t Animation::current_fg_mode()
+{
 	return fg_mode;
 }
 
 /* ----- END PUBLIC FUNCTIONS ----- */
 /* ----- PRIVATE FUNCTIONS BELOW ----- */
 
-void Animation::update_trigger_animations(){
+void Animation::update_trigger_animations()
+{
 	//update bg_event based on modes:
 	if(bg_event_has_occurred){
 		//only update certain modes:
@@ -549,7 +559,8 @@ void Animation::update_trigger_animations(){
 	}//if num_trigger_events > 0
 }//update_trigger_animations()
 
-void Animation::add_trigger_event(TriggerEvent event){
+void Animation::add_trigger_event(TriggerEvent event)
+{
 	//make sure there is room for another animation
 	if(num_trigger_events < MAX_TRIGGER_EVENTS){
 		//add it to the end of the line, and icnrement the array.
@@ -567,7 +578,8 @@ void Animation::add_trigger_event(TriggerEvent event){
 	}
 }
 
-void Animation::clean_trigger_events(){
+void Animation::clean_trigger_events()
+{
 	//this will need to check the active trigger events and remove one if it is present.
 	for(int event_num = 0; event_num<num_trigger_events; event_num++){
 		if(active_triggers[event_num].event_has_completed){
@@ -586,13 +598,15 @@ void Animation::clean_trigger_events(){
 	}
 }
 
-void Animation::fill_solid(uint32_t * led_array, uint16_t num_leds, uint32_t color){
+void Animation::fill_solid(uint32_t * led_array, uint16_t num_leds, uint32_t color)
+{
 	for(int i=0; i<num_leds; i++){
 		led_array[i] = color;
 	}
 }
 
-void Animation::fill_rainbow(uint32_t * led_array, uint16_t num_leds, rainbow rainbow, int32_t origin_offset, uint32_t current_frame, uint32_t total_frames){
+void Animation::fill_rainbow(uint32_t * led_array, uint16_t num_leds, rainbow rainbow, int32_t origin_offset, uint32_t current_frame, uint32_t total_frames)
+{
 	//first we need to use the offset and frame values to determine where the pure rainbow colors begin as an offset from the origin:
 	int32_t color_offset_start_position = 0;
 	if(total_frames > 0){
@@ -689,7 +703,8 @@ void Animation::fill_rainbow(uint32_t * led_array, uint16_t num_leds, rainbow ra
 	} //rainbow color for loop
 }
 
-void Animation::fill_marquee(uint32_t * led_array, uint16_t num_leds, uint32_t color, int32_t origin_offset, uint32_t current_frame, uint32_t total_frames){
+void Animation::fill_marquee(uint32_t * led_array, uint16_t num_leds, uint32_t color, int32_t origin_offset, uint32_t current_frame, uint32_t total_frames)
+{
 	//first we need to use the offset and frame values to determine where the first marquee pip begins as an offset from the origin:
 	int32_t color_offset_start_position = 0;
 	if(total_frames > 0){
@@ -800,7 +815,8 @@ void Animation::fill_marquee(uint32_t * led_array, uint16_t num_leds, uint32_t c
 	} //marquee subpixel for loop
 }
 
-void Animation::fill_vu_meter(uint32_t * led_array, uint16_t num_leds, rainbow rainbow, int32_t origin_offset){
+void Animation::fill_vu_meter(uint32_t * led_array, uint16_t num_leds, rainbow rainbow, int32_t origin_offset)
+{
 	//we'll need a temporary color array before we overwrite the actual Animation's led_color_array.
 	uint32_t temp_color_array[num_leds];
 
@@ -842,7 +858,8 @@ void Animation::fill_vu_meter(uint32_t * led_array, uint16_t num_leds, rainbow r
 	}
 }
 
-uint32_t Animation::slow_fade_color_adjust(rainbow rainbow, uint8_t current_color_position, uint32_t current_frame, uint32_t total_frames){
+uint32_t Animation::slow_fade_color_adjust(rainbow rainbow, uint8_t current_color_position, uint32_t current_frame, uint32_t total_frames)
+{
 	uint32_t current_color = rainbow.colors[current_color_position];
 	uint8_t next_color_position = current_color_position + 1;
 	if( (next_color_position) >= rainbow.num_colors){
@@ -853,7 +870,8 @@ uint32_t Animation::slow_fade_color_adjust(rainbow rainbow, uint8_t current_colo
 	return adjusted_color;
 }
 
-void Animation::increment_frame(){
+void Animation::increment_frame()
+{
 	//increment background related info
 	current_bg_frame++;
 	if(current_bg_frame >= total_bg_frames){
@@ -897,28 +915,32 @@ void Animation::increment_frame(){
 	clean_trigger_events();
 }
 
-void Animation::increment_bg_rainbow(){
+void Animation::increment_bg_rainbow()
+{
 	current_bg_rainbow_color++;
 	if(current_bg_rainbow_color >= bg_rainbow.num_colors){
 		current_bg_rainbow_color = 0;
 	}
 }
 
-void Animation::increment_fg_rainbow(){
+void Animation::increment_fg_rainbow()
+{
 	current_fg_rainbow_color++;
 	if(current_fg_rainbow_color >= fg_rainbow.num_colors){
 		current_fg_rainbow_color = 0;
 	}
 }
 
-void Animation::increment_trigger_rainbow(){
+void Animation::increment_trigger_rainbow()
+{
 	current_trigger_rainbow_color++;
 	if(current_trigger_rainbow_color >= trigger_rainbow.num_colors){
 		current_trigger_rainbow_color = 0;
 	}
 }
 
-uint32_t Animation::correct_offset(int32_t origin_offset){
+uint32_t Animation::correct_offset(int32_t origin_offset)
+{
 	int32_t corrected_offset = origin_offset;
 	//first check for and correct any out of bounds offsets.
 	while(corrected_offset < LC_MAX_OFFSET*(-1)){
@@ -940,7 +962,8 @@ uint32_t Animation::correct_offset(int32_t origin_offset){
 
 /* ----- BEGIN LIGHTINGCONTROL CLASS FUNCTIONS -----*/
 
-LightingControl::LightingControl(Adafruit_NeoPixel *LED_controller, uint8_t max_brightness){
+LightingControl::LightingControl(Adafruit_NeoPixel *LED_controller, uint8_t max_brightness)
+{
 	//set the strip variable for the controller to the referenced Adafruit_NeoPixel object
 	strip = LED_controller;
 	brightness = max_brightness;
@@ -948,7 +971,8 @@ LightingControl::LightingControl(Adafruit_NeoPixel *LED_controller, uint8_t max_
 
 /* ----- PUBLIC FUNCTIONS BELOW ----- */
 
-void LightingControl::init(){
+void LightingControl::init()
+{
 	//this just makes sure the strip.begin() function got called.
 	strip->begin();
 	//set the brightness or the entire controller once, ever.
@@ -959,7 +983,8 @@ void LightingControl::init(){
 	num_current_animations = 0;
 }
 
-int LightingControl::update(){
+int LightingControl::update()
+{
 	if(last_update > LC_DEFAULT_REFRESH_RATE){
 		//this will iterate through any active Animation objects and update the LEDs under the Animation object's control
 		for(int i=0; i<num_current_animations; i++){
@@ -979,7 +1004,8 @@ int LightingControl::update(){
 	return LC_STRIP_NOT_WRITTEN;
 }
 
-void LightingControl::add_animation(Animation * new_animation){
+void LightingControl::add_animation(Animation * new_animation)
+{
 	if(num_current_animations < MAX_ANIMATIONS){
 		//this will need to add the animation if it is not present, and then it will still need to call an Animation::init() even if it is already present.
 		int16_t animation_position = check_animations(new_animation);
@@ -1007,7 +1033,8 @@ void LightingControl::add_animation(Animation * new_animation){
 	}
 }
 
-void LightingControl::rm_animation(Animation * animation_to_be_removed){
+void LightingControl::rm_animation(Animation * animation_to_be_removed)
+{
 	//this will need to check the active animations and remove one if it is present.
 	int16_t animation_position = check_animations(animation_to_be_removed);
 	if(animation_position != NOT_IN_ARRAY){
@@ -1034,14 +1061,16 @@ void LightingControl::rm_animation(Animation * animation_to_be_removed){
 /* ----- END PUBLIC FUNCTIONS ----- */
 /* ----- PRIVATE FUNCTIONS BELOW ----- */
 
-void LightingControl::set_corrected_color(uint16_t led, uint32_t color){
+void LightingControl::set_corrected_color(uint16_t led, uint32_t color)
+{
 	uint8_t red = (uint8_t)(color >> 16);
 	uint8_t green = (uint8_t)(color >> 8);
 	uint8_t blue = (uint8_t)(color);
 	strip->setPixelColor(led, pgm_read_byte(&gamma8[red]), pgm_read_byte(&gamma8[green]), pgm_read_byte(&gamma8[blue]));
 }
 
-int16_t LightingControl::check_animations(Animation * animation){
+int16_t LightingControl::check_animations(Animation * animation)
+{
 	for(int i=0; i<num_current_animations; i++){
 		if(currently_running_animations[i] == animation){
 			return i;

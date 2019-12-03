@@ -62,13 +62,13 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 //comment this out to disable pitch debug messages
 //this will turn on or off output messages about the frequency measurements in the measure_freq() function:
-#define PITCH_DEBUG
+//#define PITCH_DEBUG
 
 //comment this out to disable verbose frequency adjustment messages for every change in frequency
-#define PITCH_VERBOSE_DEBUG
+//#define PITCH_VERBOSE_DEBUG
 
 //comment this out to disable startup test in-depth frequency printouts:
-#define STARTUP_PITCH_MEASUREMENT_DEBUG
+//#define STARTUP_PITCH_MEASUREMENT_DEBUG
 
 //this controls default state of frequency correction
 #define FREQ_CORRECTION_DEFAULT_ENABLE_STATE true

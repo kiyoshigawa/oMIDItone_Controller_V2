@@ -258,7 +258,8 @@ uint8_t head_order_array[NUM_OMIDITONES];
 uint8_t pending_head_order_array[NUM_OMIDITONES];
 
 //this function moves the head in question to the end of the head_order_array, and shuffles the remaining heads down into its place.
-void pending_head_order_to_end(uint8_t head_number){
+void pending_head_order_to_end(uint8_t head_number)
+{
 	//don't need to iterate to the last one, because if the head_number is in the last position already, we're good
 	for(int i=0; i<NUM_OMIDITONES-1; i++){
 		if(pending_head_order_array[i] == head_number){
@@ -270,7 +271,8 @@ void pending_head_order_to_end(uint8_t head_number){
 	}
 }
 
-void update_lighting(){
+void update_lighting()
+{
 	if(lighting_is_enabled){
 		int lighting_data_was_sent = lc.update();
 		if(lighting_data_was_sent == LC_STRIP_WRITTEN){
@@ -281,11 +283,13 @@ void update_lighting(){
 	}
 }
 
-void update_oMIDItones(){
+void update_oMIDItones()
+{
 	//TIM: rework this entirely later
 }
 
-void setup(){
+void setup()
+{
 	#ifdef BOOT_DEBUG
 		Serial.begin(9600);
 		delay(5000); //wait for serial
@@ -313,7 +317,8 @@ void setup(){
 	#endif
 }
 
-void loop(){
+void loop()
+{
 	//this will update the MIDI info on the controller to be current for use below:
 	//mc.update();
 

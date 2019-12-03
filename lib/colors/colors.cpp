@@ -23,11 +23,13 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 #include <colors.h>
 
-uint32_t Color(uint8_t r, uint8_t g, uint8_t b){
+uint32_t Color(uint8_t r, uint8_t g, uint8_t b)
+{
 	return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
 }
 
-uint32_t color_map(int x, int in_min, int in_max, uint32_t start_color, uint32_t end_color){
+uint32_t color_map(int x, int in_min, int in_max, uint32_t start_color, uint32_t end_color)
+{
 
 	//assign the colors based on the above.
 	uint32_t start_red = (uint8_t)(start_color >> 16);
