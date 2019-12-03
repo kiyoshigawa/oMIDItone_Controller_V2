@@ -2,7 +2,7 @@
 See the .h file for the writeup, I'll copy it over when it's finished.
 */
 
-#include "oMIDItone.h"
+#include <oMIDItone.h>
 
 //constructor function
 oMIDItone::oMIDItone(uint16_t signal_enable_optoisolator, uint16_t speaker_disable_optoisolator, uint16_t cs1, uint16_t cs2, uint16_t feedback, uint16_t servo_l_channel, uint16_t servo_r_channel, uint16_t servo_l_min, uint16_t servo_l_max, uint16_t servo_r_min, uint16_t servo_r_max, uint16_t led_head_array[NUM_LEDS_PER_HEAD], Animation * head_animation){

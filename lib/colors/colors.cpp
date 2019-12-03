@@ -1,6 +1,6 @@
 //This is just to offload color definitions to another file so I don't need to scroll so much in the main file.
 
-#include "colors.h"
+#include <colors.h>
 
 //simple function for converting RGB into uint32_t used by Adafruit_NeoPixel
 uint32_t Color(uint8_t r, uint8_t g, uint8_t b){

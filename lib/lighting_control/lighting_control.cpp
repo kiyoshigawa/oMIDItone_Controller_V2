@@ -2,7 +2,7 @@
 I'll copy over the comments when it's finished
 */
 
-#include "lighting_control.h"
+#include <lighting_control.h>
 
 /* ----- BEGIN ANIMATION CLASS FUNCTIONS -----*/
 

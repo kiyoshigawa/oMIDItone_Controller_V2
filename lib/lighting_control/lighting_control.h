@@ -10,7 +10,7 @@ Date: 2019-09-29
 
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
-#include "colors.h"
+#include <colors.h>
 
 //comment this to disable debug messages about animations being added or removed to the lighting controller
 #define ANIMATION_DEBUG

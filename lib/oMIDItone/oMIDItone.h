@@ -42,7 +42,7 @@ lighting modes and servo animation modes, as well as for direct control if I wan
 #include <Adafruit_PWMServoDriver.h>
 
 //this is for the LED lighting so the animation for the head can be stored on the head.
-#include "lighting_control.h"
+#include <lighting_control.h>
 
 //This prints out general debug messages for the head.
 //this includes startup test messages and messages that let you know when notes are measured out of range

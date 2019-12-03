@@ -21,9 +21,9 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #include <Arduino.h>
 #include <ADC.h>
 #include <Adafruit_NeoPixel.h>
-#include "lighting_control.h"
-#include "oMIDItone.h"
-
+#include <colors.h>
+#include <lighting_control.h>
+#include <oMIDItone.h>
 
 void setup() {
   // put your setup code here, to run once:
