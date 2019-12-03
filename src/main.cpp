@@ -82,82 +82,82 @@ bool note_trigger_is_enabled = DEFAULT_NOTE_TRIGGER_SETTING;
 // Pin and other head-specific Definitions
 //om#_leds[] arrays are per head ordered from left to right, the first 6 are front leds, the next 6 are the back top, and the final 6 are the back bottom leds
 //Red Head:
-uint16_t om1_se_pin = 15;
-uint16_t om1_sd_pin = 26;
-uint16_t om1_cs1_pin = 17;
-uint16_t om1_cs2_pin = 16;
-uint16_t om1_analog_feedback_pin = A10;
-uint16_t om1_l_min = 1390;
-uint16_t om1_l_max = om1_l_min + SERVO_MAX_OFFSET;
-uint16_t om1_r_min = 1340;
-uint16_t om1_r_max = om1_r_min - SERVO_MAX_OFFSET;
-uint16_t om1_l_channel = 0;
-uint16_t om1_r_channel = 1;
+const uint16_t om1_se_pin = 15;
+const uint16_t om1_sd_pin = 26;
+const uint16_t om1_cs1_pin = 17;
+const uint16_t om1_cs2_pin = 16;
+const uint16_t om1_analog_feedback_pin = A10;
+const uint16_t om1_l_min = 1390;
+const uint16_t om1_l_max = om1_l_min + SERVO_MAX_OFFSET;
+const uint16_t om1_r_min = 1340;
+const uint16_t om1_r_max = om1_r_min - SERVO_MAX_OFFSET;
+const uint16_t om1_l_channel = 0;
+const uint16_t om1_r_channel = 1;
 uint16_t om1_leds[NUM_LEDS_PER_HEAD] = {12, 13, 14, 15, 16, 17, 95, 94, 93, 92, 91, 90, 84, 85, 86, 87, 88, 89};
 //Yellow Head:
-uint16_t om2_se_pin = 33;
-uint16_t om2_sd_pin = 25;
-uint16_t om2_cs1_pin = 22;
-uint16_t om2_cs2_pin = 21;
-uint16_t om2_analog_feedback_pin = A11;
-uint16_t om2_l_min = 1475;
-uint16_t om2_l_max = om1_l_min + SERVO_MAX_OFFSET;
-uint16_t om2_r_min = 1430;
-uint16_t om2_r_max = om1_r_min - SERVO_MAX_OFFSET;
-uint16_t om2_l_channel = 2;
-uint16_t om2_r_channel = 3;
+const uint16_t om2_se_pin = 33;
+const uint16_t om2_sd_pin = 25;
+const uint16_t om2_cs1_pin = 22;
+const uint16_t om2_cs2_pin = 21;
+const uint16_t om2_analog_feedback_pin = A11;
+const uint16_t om2_l_min = 1475;
+const uint16_t om2_l_max = om1_l_min + SERVO_MAX_OFFSET;
+const uint16_t om2_r_min = 1430;
+const uint16_t om2_r_max = om1_r_min - SERVO_MAX_OFFSET;
+const uint16_t om2_l_channel = 2;
+const uint16_t om2_r_channel = 3;
 uint16_t om2_leds[NUM_LEDS_PER_HEAD] = {23, 22, 21, 20, 19, 18, 59, 58, 57, 56, 55, 54, 48, 49, 50, 51, 52, 53};
 //White Head:
-uint16_t om3_se_pin = 24;
-uint16_t om3_sd_pin = 30;
-uint16_t om3_cs1_pin = 3;
-uint16_t om3_cs2_pin = 23;
-uint16_t om3_analog_feedback_pin = A13;
-uint16_t om3_l_min = 1280;
-uint16_t om3_l_max = om1_l_min + SERVO_MAX_OFFSET;
-uint16_t om3_r_min = 1450;
-uint16_t om3_r_max = om1_r_min - SERVO_MAX_OFFSET;
-uint16_t om3_l_channel = 4;
-uint16_t om3_r_channel = 5;
+const uint16_t om3_se_pin = 24;
+const uint16_t om3_sd_pin = 30;
+const uint16_t om3_cs1_pin = 3;
+const uint16_t om3_cs2_pin = 23;
+const uint16_t om3_analog_feedback_pin = A13;
+const uint16_t om3_l_min = 1280;
+const uint16_t om3_l_max = om1_l_min + SERVO_MAX_OFFSET;
+const uint16_t om3_r_min = 1450;
+const uint16_t om3_r_max = om1_r_min - SERVO_MAX_OFFSET;
+const uint16_t om3_l_channel = 4;
+const uint16_t om3_r_channel = 5;
 uint16_t om3_leds[NUM_LEDS_PER_HEAD] = {6, 7, 8, 9, 10, 11, 101, 100, 99, 98, 97, 96, 78, 79, 80, 81, 82, 83};
 //Black Head:
-uint16_t om4_se_pin = 10;
-uint16_t om4_sd_pin = 29;
-uint16_t om4_cs1_pin = 9;
-uint16_t om4_cs2_pin = 8;
-uint16_t om4_analog_feedback_pin = A12;
-uint16_t om4_l_min = 1475;
-uint16_t om4_l_max = om1_l_min + SERVO_MAX_OFFSET;
-uint16_t om4_r_min = 1310;
-uint16_t om4_r_max = om1_r_min - SERVO_MAX_OFFSET;
-uint16_t om4_l_channel = 6;
-uint16_t om4_r_channel = 7;
+const uint16_t om4_se_pin = 10;
+const uint16_t om4_sd_pin = 29;
+const uint16_t om4_cs1_pin = 9;
+const uint16_t om4_cs2_pin = 8;
+const uint16_t om4_analog_feedback_pin = A12;
+const uint16_t om4_l_min = 1475;
+const uint16_t om4_l_max = om1_l_min + SERVO_MAX_OFFSET;
+const uint16_t om4_r_min = 1310;
+const uint16_t om4_r_max = om1_r_min - SERVO_MAX_OFFSET;
+const uint16_t om4_l_channel = 6;
+const uint16_t om4_r_channel = 7;
 uint16_t om4_leds[NUM_LEDS_PER_HEAD] = {29, 28, 27, 26, 25, 24, 65, 64, 63, 62, 61, 60, 42, 43, 44, 45, 46, 47};
 //Green Head:
-uint16_t om5_se_pin = 32;
-uint16_t om5_sd_pin = 28;
-uint16_t om5_cs1_pin = 7;
-uint16_t om5_cs2_pin = 6;
-uint16_t om5_analog_feedback_pin = A14;
-uint16_t om5_l_min = 1475;
-uint16_t om5_l_max = om1_l_min + SERVO_MAX_OFFSET;
-uint16_t om5_r_min = 1420;
-uint16_t om5_r_max = om1_r_min - SERVO_MAX_OFFSET;
-uint16_t om5_l_channel = 8;
-uint16_t om5_r_channel = 9;
+const uint16_t om5_se_pin = 32;
+const uint16_t om5_sd_pin = 28;
+const uint16_t om5_cs1_pin = 7;
+const uint16_t om5_cs2_pin = 6;
+const uint16_t om5_analog_feedback_pin = A14;
+const uint16_t om5_l_min = 1475;
+const uint16_t om5_l_max = om1_l_min + SERVO_MAX_OFFSET;
+const uint16_t om5_r_min = 1420;
+const uint16_t om5_r_max = om1_r_min - SERVO_MAX_OFFSET;
+const uint16_t om5_l_channel = 8;
+const uint16_t om5_r_channel = 9;
 uint16_t om5_leds[NUM_LEDS_PER_HEAD] = {0, 1, 2, 3, 4, 5, 107, 106, 105, 104, 103, 102, 72, 73, 74, 75, 76, 77};
 //Blue Head:
-uint16_t om6_se_pin = 31;
-uint16_t om6_sd_pin = 27;
-uint16_t om6_cs1_pin = 5;
-uint16_t om6_cs2_pin = 4;
-uint16_t om6_analog_feedback_pin = A0;
-uint16_t om6_l_min = 1335;
-uint16_t om6_l_max = om1_l_min + SERVO_MAX_OFFSET;
-uint16_t om6_r_min = 1410;
-uint16_t om6_r_max = om1_r_min - SERVO_MAX_OFFSET;
-uint16_t om6_l_channel = 14;
-uint16_t om6_r_channel = 15;
+const uint16_t om6_se_pin = 31;
+const uint16_t om6_sd_pin = 27;
+const uint16_t om6_cs1_pin = 5;
+const uint16_t om6_cs2_pin = 4;
+const uint16_t om6_analog_feedback_pin = A0;
+const uint16_t om6_l_min = 1335;
+const uint16_t om6_l_max = om1_l_min + SERVO_MAX_OFFSET;
+const uint16_t om6_r_min = 1410;
+const uint16_t om6_r_max = om1_r_min - SERVO_MAX_OFFSET;
+const uint16_t om6_l_channel = 14;
+const uint16_t om6_r_channel = 15;
 uint16_t om6_leds[NUM_LEDS_PER_HEAD] = {35, 34, 33, 32, 31, 30, 71, 70, 69, 68, 67, 66, 36, 37, 38, 39, 40, 41};
 
 //this array controls the type of notes being sent to each head on note_trigger events when they are active:
@@ -254,10 +254,10 @@ int head_offset = 0;
 //it allows for the least recently used heads to be selected first when deciding whish head will play a note
 uint8_t head_order_array[NUM_OMIDITONES];
 
-//this stores the state of the head order array until all notes are off, then it is pushed into the actual head order array.
+//this stores the state of the head order array until all notes are off, then it is pushed into the head order array.
 uint8_t pending_head_order_array[NUM_OMIDITONES];
 
-//this function moves the head in question to the end of the head_order_array, and shuffles the remaining heads down into its place.
+//this function moves the head in question to the end of the head_order_array, and moves the remaining heads down.
 void pending_head_order_to_end(uint8_t head_number)
 {
 	//don't need to iterate to the last one, because if the head_number is in the last position already, we're good
