@@ -307,6 +307,7 @@ void setup()
 		lc.add_animation(oms[i].animation);
 		//init the om objects - This is going to take a while - like several minutes:
 		oms[i].init();
+		lc.update();
 	}
 
 	//initialize the MIDIController:

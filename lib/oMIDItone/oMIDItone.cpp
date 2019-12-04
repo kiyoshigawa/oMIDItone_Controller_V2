@@ -155,7 +155,7 @@ void oMIDItone::update(void)
 {
 	//if no note is set, disable the relay and stop checking the current frequency.
 	//don't bother with any of the rest if the head can't play the current_note
-	if(!can_play_freq(current_freq)){
+	if(!can_play_freq(current_desired_freq)){
 		//turn off the noise.
 		digitalWrite(signal_enable_optoisolator_pin, LOW);
 	} else {
@@ -190,7 +190,7 @@ bool oMIDItone::play_freq(uint32_t freq)
 		set_freq(freq);
 		return true;
 	} else{
-		current_freq = NO_FREQ;
+		current_desired_freq = NO_FREQ;
 		return false;
 	}
 }
@@ -201,13 +201,13 @@ bool oMIDItone::update_freq(uint32_t freq)
 		set_freq(freq);
 		return true;
 	} else {
-		current_freq = NO_FREQ;
+		current_desired_freq = NO_FREQ;
 		return false;
 	}
 }
 void oMIDItone::sound_off(void)
 {
-	current_freq = NO_FREQ;
+	current_desired_freq = NO_FREQ;
 	update();
 }
 
@@ -227,7 +227,7 @@ void oMIDItone::cancel_pitch_correction(void)
 
 bool oMIDItone::is_ready(void)
 {
-	if(had_successful_init && current_freq == NO_FREQ){
+	if(had_successful_init && current_desired_freq == NO_FREQ){
 		return true;
 	} else {
 		return false;
@@ -299,7 +299,7 @@ bool oMIDItone::startup_test(void)
 		}
 	}
 
-	startup_start_time = millis();
+	startup_start_time = 0;
 	//iterate through all frequencies with jitter to determine the average frequency for that resistance.
 	for(uint16_t resistance = JITTER; resistance <= NUM_RESISTANCE_STEPS-JITTER; resistance++){
 		current_resistance = resistance;
@@ -314,7 +314,7 @@ bool oMIDItone::startup_test(void)
 				last_rising_edge = 0;
 			}
 			//If it doesn't detect a rising edge in time mid frequency checking, set the value to the previous value and continue.
-			if((startup_start_time + TIME_TO_WAIT_FOR_INIT) < millis()){
+			if(startup_start_time > TIME_TO_WAIT_FOR_INIT){
 				measured_freqs[current_resistance] = measured_freqs[current_resistance-1];
 				break;
 			}
@@ -372,10 +372,10 @@ bool oMIDItone::startup_test(void)
 
 	//Set the max_note and min_note variables based on the frequencies measured:
 	for(uint16_t i = JITTER; i <= NUM_RESISTANCE_STEPS-JITTER; i++){
-		if(measured_freqs[i] < max_freq){
+		if(measured_freqs[i] > max_freq){
 			max_freq = measured_freqs[i];
 		}
-		if(measured_freqs[i] > min_freq){
+		if(measured_freqs[i] < min_freq){
 			min_freq = measured_freqs[i];
 		}
 	}
@@ -547,7 +547,7 @@ bool oMIDItone::can_play_freq(uint32_t freq)
 void oMIDItone::servo_update(void)
 {
 	//If the current_freq is not NO_FREQ, open the mouth to the max position:
-	if(current_freq != NO_FREQ){
+	if(current_desired_freq != NO_FREQ){
 		servo_controller.setPWM(l_channel, 0, l_max);
 		servo_controller.setPWM(r_channel, 0, r_max);
 		pitch_correction_has_been_compromised = true;

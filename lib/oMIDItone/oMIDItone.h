@@ -82,8 +82,9 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 //this is a non-valid frequency value to denote that no sound should be output.
 #define NO_FREQ 0
 
-//this is how many resistance steps can be used with the digital pots. The current hardware has 2 digital pots with 256 steps each, for a total of 512.
-#define NUM_RESISTANCE_STEPS 765
+//this is how many resistance steps can be used with the digital pots. The current hardware has 2 digital pots with 256 steps each,
+//but the 50k pot is alternating every step of the 100k pot, so it adds up to 256+512 = 768 total steps.
+#define NUM_RESISTANCE_STEPS 768
 
 //This is the analog read threshold for a rising edge to count the frequency.
 #define RISING_EDGE_THRESHOLD 50
