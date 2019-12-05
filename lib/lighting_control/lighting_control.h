@@ -76,105 +76,108 @@ To summarize:
 #define MAX_TRIGGER_EVENTS 20
 
 
-//First make a couple masks so you can separate the FG from the BG later:
-#define LC_BG_MASK 0x00FF
+//this is the background mask for the bits that set a lighting mode background.
+#define LC_BG_MASK 0x00FF 
+//this is the foreground mask for the bits that set a lighting mode foreground.
 #define LC_FG_MASK 0xFF00
 
 //definitions for various lighting modes:
 
 //these are background modes, they are rendered first, and all others are rendered over them as specified below.
 
-//this turns off all the leds in the animation. It does not change once drawn.
-#define LC_BG_OFF 0x0001
+enum lc_bg{
+	//this turns off all the leds in the animation. It does not change once drawn.
+	no_bg = 0x0001,
 
-//this shows a solid unchanging color on all the leds in the background. The color will be the first in the rainbow.
-//you can step to other colors in the rainbow by external BG_TRIGGER, otherwise it does not change once drawn.
-#define LC_BG_SOLID 0x0002
+	//this shows a solid unchanging color on all the leds in the background. The color will be the first in the rainbow.
+	//you can step to other colors in the rainbow by external BG_TRIGGER, otherwise it does not change once drawn.
+	solid = 0x0002,
 
-//this will slowly fade all the leds as a single color fading through the colors of a rainbow.
-//color offset can be externally BG_TRIGGERed to the next color in the rainbow, or will move at a constant rate.
-#define LC_BG_SLOW_FADE 0x0003
+	//this will slowly fade all the leds as a single color fading through the colors of a rainbow.
+	//color offset can be externally BG_TRIGGERed to the next color in the rainbow, or will move at a constant rate.
+	slow_fade = 0x0003,
 
-//this will populate a rainbow's colors evenly across the LED in the animation in order. It does not animate once drawn.
-#define LC_BG_RAINBOW_FIXED 0x0004
+	//this will populate a rainbow's colors evenly across the LED in the animation in order. It does not animate once drawn.
+	rainbow_fixed = 0x0004,
 
-//this will populate a rainbow like above, but it will animate it by offseting the color pattern over time.
-#define LC_BG_RAINBOW_SLOW_ROTATE 0x0005
-
+	//this will populate a rainbow like above, but it will animate it by offseting the color pattern over time.
+	rainbow_slow_rotate = 0x0005
+};
 
 //These are foreground modes, they will render animations over the background modes above.
+enum lc_fg{
+	//this is a mode that has no additional foreground animation over the background animation.
+	none = 0x0000,
 
-//this is a mode that has no additional foreground animation over the background animation.
-#define LC_FG_NONE 0x0000
+	//this will display a fixed pattern the same as a marquee chase animation that will only move if the offset is changed manually where the color is always a solid constant color.
+	marquee_solid_fixed = 0x0100,
 
-//this will display a fixed pattern the same as a marquee chase animation that will only move if the offset is changed manually where the color is always a solid constant color.
-#define LC_FG_MARQUEE_SOLID_FIXED 0x0100
+	//this will display a single-color marquee style pixel chase animation.
+	marquee_solid = 0x0200,
 
-//this will display a single-color marquee style pixel chase animation.
-#define LC_FG_MARQUEE_SOLID 0x0200
+	//this will display a fixed pattern the same as a marquee chase animation that will only move if the offset is changed manually where the color of all the LEDs slowly fades through the colors of a rainbow.
+	marquee_slow_fade_fixed = 0x0300,
 
-//this will display a fixed pattern the same as a marquee chase animation that will only move if the offset is changed manually where the color of all the LEDs slowly fades through the colors of a rainbow.
-#define LC_FG_MARQUEE_SLOW_FADE_FIXED 0x0300
+	//this will display a marquee style animation where the color of all the LEDs slowly fades through the colors of a rainbow.
+	marquee_slow_fade = 0x0400,
 
-//this will display a marquee style animation where the color of all the LEDs slowly fades through the colors of a rainbow.
-#define LC_FG_MARQUEE_SLOW_FADE 0x0400
-
-//this will render the foreground rainbow based on the offset value, and leave LEDs below the offset value alone.
-#define LC_FG_VU_METER 0x0500
-
+	//this will render the foreground rainbow based on the offset value, and leave LEDs below the offset value alone.
+	vu_meter = 0x0500
+};
 
 //these are trigger_event animations. They operate only when called externally by trigger_event(), and override the foreground and background effects.
+enum lc_trigger{
+	//this will trigger a change in the background lighting, depending on the mode:
+	bg = 0,
 
-//this will trigger a change in the background lighting, depending on the mode:
-#define LC_TRIGGER_BG 0
+	//this will trigger a change in the foreground lighting, depending on the mode:
+	fg = 1,
 
-//this will trigger a change in the foreground lighting, depending on the mode:
-#define LC_TRIGGER_FG 1
+	//this will cause a pulse of a single color to appear somewhere randomly along the led array. It will fade in, then fade back out one time per trigger.
+	//pulses need to be triggered externally.
+	//fade in and out times can be adjusted separately.
+	color_pulse = 2,
 
-//this will cause a pulse of a single color to appear somewhere randomly along the led array. It will fade in, then fade back out one time per trigger.
-//pulses need to be triggered externally.
-//fade in and out times can be adjusted separately.
-#define LC_TRIGGER_COLOR_PULSE 2
+	//this will cause a pulse of to appear somewhere randomly along the led array. It will fade in, then fade back out one time per trigger.
+	//All pulses will be the same color, and the color will change over time.
+	//color offset can be set externally, or to a steady rate
+	//pulse need to be triggered externally.
+	//fade in and out times can be adjusted separately.
+	color_pulse_slow_fade = 3,
 
-//this will cause a pulse of to appear somewhere randomly along the led array. It will fade in, then fade back out one time per trigger.
-//All pulses will be the same color, and the color will change over time.
-//color offset can be set externally, or to a steady rate
-//pulse need to be triggered externally.
-//fade in and out times can be adjusted separately.
-#define LC_TRIGGER_COLOR_PULSE_SLOW_FADE 3
+	//this will cause a pulse of to appear somewhere randomly along the led array. It will fade in, then fade back out one time per trigger.
+	//Each pulse will be a new color in the order of the rainbow.
+	//pulse need to be triggered externally.
+	//fade in and out times can be adjusted separately.
+	color_pulse_rainbow = 4,
 
-//this will cause a pulse of to appear somewhere randomly along the led array. It will fade in, then fade back out one time per trigger.
-//Each pulse will be a new color in the order of the rainbow.
-//pulse need to be triggered externally.
-//fade in and out times can be adjusted separately.
-#define LC_TRIGGER_COLOR_PULSE_RAINBOW 4
+	//this will fire off colored pulses of a single color down the LED strip when triggered externally.
+	//shots need to be externally triggered.
+	color_shot = 5,
 
-//this will fire off colored pulses of a single color down the LED strip when triggered externally.
-//shots need to be externally triggered.
-#define LC_TRIGGER_COLOR_SHOT 5
+	//this will fire off color pulses that slowly fade along the colors of a rainbow over time.
+	//color offset can be changed externally, or set to a constant rate
+	//shots need to be externally triggered.
+	color_shot_slow_fade = 6,
 
-//this will fire off color pulses that slowly fade along the colors of a rainbow over time.
-//color offset can be changed externally, or set to a constant rate
-//shots need to be externally triggered.
-#define LC_TRIGGER_COLOR_SHOT_SLOW_FADE 6
+	//this will fire off color pulses with a new color for each pulse, in the order of the colors of a rainbow.
+	//shots need to be externally triggered.
+	color_shot_rainbow = 7,
 
-//this will fire off color pulses with a new color for each pulse, in the order of the colors of a rainbow.
-//shots need to be externally triggered.
-#define LC_TRIGGER_COLOR_SHOT_RAINBOW 7
+	//this will flash all the LEDs for the head a single color for a short time.
+	//needs to be externallt triggered
+	flash = 8,
 
-//this will flash all the LEDs for the head a single color for a short time.
-//needs to be externallt triggered
-#define LC_TRIGGER_FLASH 8
+	//this will flash all the LEDs for the head a single color for a short time.
+	//color offset can be changed externally, or set to a constant rate
+	//needs to be externallt triggered
+	flash_slow_fade = 9,
 
-//this will flash all the LEDs for the head a single color for a short time.
-//color offset can be changed externally, or set to a constant rate
-//needs to be externallt triggered
-#define LC_TRIGGER_FLASH_SLOW_FADE 9
-
-//this will flash all the LEDs for the head a single color for a short time.
-//Each flash will be a new color in the order of the rainbow.
-//needs to be externallt triggered
-#define LC_TRIGGER_FLASH_RAINBOW 10
+	//this will flash all the LEDs for the head a single color for a short time.
+	//Each flash will be a new color in the order of the rainbow.
+	//needs to be externallt triggered
+	flash_rainbow = 10
+};
 
 //defines to make the code more readable:
 #define POSITIVE 1

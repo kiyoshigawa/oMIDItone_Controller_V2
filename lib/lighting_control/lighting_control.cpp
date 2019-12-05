@@ -75,46 +75,57 @@ void Animation::init()
 	total_marquee_subpips = marquee_subdivisions*(marquee_on_subpips+marquee_off_subpips);
 
 	//then set defaults based on the modes:
-	if(bg_mode == LC_BG_OFF){
+	switch(bg_mode){
+	case lc_bg::no_bg:
 		//set all led colors to be off:
 		fill_solid(led_color_array, num_leds, off);
-	} else if(bg_mode == LC_BG_SOLID){
+		break;
+	case lc_bg::solid:	
 		//don't need to change any of the defaults above.
 		//set all leds to the current_bg_rainbow_color:
 		fill_solid(led_color_array, num_leds, bg_rainbow.colors[current_bg_rainbow_color]);
-	} else if(bg_mode == LC_BG_SLOW_FADE){
+	case lc_bg::slow_fade:	
 		total_bg_frames = LC_SLOW_FADE_FRAMES;
 		//set color to initial rainbow color with no offset, as this is the first frame:
 		fill_solid(led_color_array, num_leds, bg_rainbow.colors[current_bg_rainbow_color]);
-	} else if(bg_mode == LC_BG_RAINBOW_FIXED){
+		break;
+	case lc_bg::rainbow_fixed:	
 		//don't need to change any of the defaults above.
 		//generate a rainbow based on the offset and ignore frames (the last two arguments default to 0):
 		fill_rainbow(led_color_array, num_leds, bg_rainbow, bg_offset);
-	} else if(bg_mode == LC_BG_RAINBOW_SLOW_ROTATE){
+		break;
+	case lc_bg::rainbow_slow_rotate:
 		total_bg_frames = LC_RAINBOW_SLOW_ROTATE_FRAMES;
 		//generate a rainbow baed on the offset value, no need to adjust based on frames as this is the first frame:
 		fill_rainbow(led_color_array, num_leds, bg_rainbow, bg_offset, current_bg_frame, total_bg_frames);
+		break;
 	}
 
-	if(fg_mode == LC_FG_MARQUEE_SOLID_FIXED){
+	switch(fg_mode){
+	case lc_fg::marquee_solid_fixed:	
 		//generate a marquee over the bg based on the offset value, no need to adjust based on frames as this is the FIXED varsion that only moved per externally set offset:
 		fill_marquee(led_color_array, num_leds, fg_rainbow.colors[current_fg_rainbow_color], fg_offset);
-	} else if(fg_mode == LC_FG_MARQUEE_SOLID){
+		break;
+	case lc_fg::marquee_solid:	
 		total_fg_frames = LC_MARQUEE_FRAMES;
 		//generate a marquee over the bg based on the offset value, no need to adjust based on frames as this is the first frame:
 		fill_marquee(led_color_array, num_leds, fg_rainbow.colors[current_fg_rainbow_color], fg_offset, current_fg_frame, total_fg_frames);
-	} else if(fg_mode == LC_FG_MARQUEE_SLOW_FADE_FIXED){
+		break;
+	case lc_fg::marquee_slow_fade_fixed:
 		total_marquee_fade_frames = LC_SLOW_FADE_FRAMES;
 		//generate a marquee over the bg based on the offset value, no need to adjust based on frames as this is fixed and only updates per externally set offset:
 		fill_marquee(led_color_array, num_leds, fg_rainbow.colors[current_fg_rainbow_color], fg_offset);
-	} else if(fg_mode == LC_FG_MARQUEE_SLOW_FADE){
+		break;
+	case lc_fg::marquee_slow_fade:
 		total_fg_frames = LC_MARQUEE_FRAMES;
 		total_marquee_fade_frames = LC_SLOW_FADE_FRAMES;
 		//generate a marquee over the bg based on the offset value, no need to adjust based on frames as this is the first frame:
 		fill_marquee(led_color_array, num_leds, fg_rainbow.colors[current_fg_rainbow_color], fg_offset, current_fg_frame, total_fg_frames);
-	} else if(fg_mode == LC_FG_VU_METER){
+		break;
+	case lc_fg::vu_meter:
 		//render the VU meter based on the offset value
 		fill_vu_meter(led_color_array, num_leds, fg_rainbow, fg_offset);
+		break;
 	}
 
 	//increment by one frame after so the next update won't repeat the first frame:
@@ -127,48 +138,63 @@ void Animation::init()
 void Animation::update()
 {
 	if(last_animation_step > min_time_between_updates){
+		//need some local variables for the switch cases below:
+		uint32_t adjusted_color;
+
 		//update background first.
-		if(bg_mode == LC_BG_OFF){
-				//set all led colors to be off:
-				fill_solid(led_color_array, num_leds, off);
-		} else if(bg_mode == LC_BG_SOLID){
-				//set all leds to the current_bg_rainbow_color:
-				fill_solid(led_color_array, num_leds, bg_rainbow.colors[current_bg_rainbow_color]);
-		} else if(bg_mode == LC_BG_SLOW_FADE){
-				//set color to adjusted color based on current/total frames:
-				uint32_t adjusted_color = slow_fade_color_adjust(bg_rainbow, current_bg_rainbow_color, current_bg_frame, total_bg_frames);
-				fill_solid(led_color_array, num_leds, adjusted_color);
-		} else if(bg_mode == LC_BG_RAINBOW_FIXED){
-				//generate a rainbow based on the offset and ignore frames (the last two arguments default to 0 and 0):
-				fill_rainbow(led_color_array, num_leds, bg_rainbow, bg_offset);
-		} else if(bg_mode == LC_BG_RAINBOW_SLOW_ROTATE){
-				//generate a rainbow baed on the offset value and current/total frames:
-				fill_rainbow(led_color_array, num_leds, bg_rainbow, bg_offset, current_bg_frame, total_bg_frames);
+		switch(bg_mode){
+		case lc_bg::no_bg:
+			//set all led colors to be off:
+			fill_solid(led_color_array, num_leds, off);
+			break;
+		case lc_bg::solid:
+			//set all leds to the current_bg_rainbow_color:
+			fill_solid(led_color_array, num_leds, bg_rainbow.colors[current_bg_rainbow_color]);
+			break;
+		case lc_bg::slow_fade:
+			//set color to adjusted color based on current/total frames:
+			adjusted_color = slow_fade_color_adjust(bg_rainbow, current_bg_rainbow_color, current_bg_frame, total_bg_frames);
+			fill_solid(led_color_array, num_leds, adjusted_color);
+			break;
+		case lc_bg::rainbow_fixed:
+			//generate a rainbow based on the offset and ignore frames (the last two arguments default to 0 and 0):
+			fill_rainbow(led_color_array, num_leds, bg_rainbow, bg_offset);
+			break;
+		case lc_bg::rainbow_slow_rotate:
+			//generate a rainbow baed on the offset value and current/total frames:
+			fill_rainbow(led_color_array, num_leds, bg_rainbow, bg_offset, current_bg_frame, total_bg_frames);
+			break;
 		}
 
 		//update foreground animations over the background colors now stored.
-		if(fg_mode == LC_FG_MARQUEE_SOLID_FIXED){
+		switch(fg_mode){
+		case lc_fg::marquee_solid_fixed:	
 			total_fg_frames = LC_MARQUEE_FRAMES;
 			//generate a marquee over the bg based on the offset value, no need to adjust based on frames as this is the FIXED varsion that only moved per externally set offset:
 			fill_marquee(led_color_array, num_leds, fg_rainbow.colors[current_fg_rainbow_color], fg_offset);
-		} else if(fg_mode == LC_FG_MARQUEE_SOLID){
+			break;
+		case lc_fg::marquee_solid:	
 			//generate a marquee over the bg based on the offset value and current/total frames:
 			fill_marquee(led_color_array, num_leds, fg_rainbow.colors[current_fg_rainbow_color], fg_offset, current_fg_frame, total_fg_frames);
-		} else if(fg_mode == LC_FG_MARQUEE_SLOW_FADE_FIXED){
+			break;
+		case lc_fg::marquee_slow_fade_fixed:
 			//adjust the color. Note the adjusted color is being adjusted based on the marquee_fade_frames, not the fg_frames,
 			//so you can (and probably should)set both of these values separately.
-			uint32_t adjusted_color = slow_fade_color_adjust(fg_rainbow, current_fg_rainbow_color, current_marquee_fade_frame, total_marquee_fade_frames);
+			adjusted_color = slow_fade_color_adjust(fg_rainbow, current_fg_rainbow_color, current_marquee_fade_frame, total_marquee_fade_frames);
 			//generate a marquee over the bg based on the offset value, no need to adjust based on frames as this is fixed and only updates per externally set offset:
 			fill_marquee(led_color_array, num_leds, adjusted_color, fg_offset);
-		} else if(fg_mode == LC_FG_MARQUEE_SLOW_FADE){
+			break;
+		case lc_fg::marquee_slow_fade:
 			//adjust the color. Note the adjusted color is being adjusted based on the marquee_fade_frames, not the fg_frames,
 			//so you can (and probably should)set both of these values separately.
-			uint32_t adjusted_color = slow_fade_color_adjust(fg_rainbow, current_fg_rainbow_color, current_marquee_fade_frame, total_marquee_fade_frames);
+			adjusted_color = slow_fade_color_adjust(fg_rainbow, current_fg_rainbow_color, current_marquee_fade_frame, total_marquee_fade_frames);
 			//generate a marquee over the bg based on the offset value and current/total frames:
 			fill_marquee(led_color_array, num_leds, adjusted_color, fg_offset, current_fg_frame, total_fg_frames);
-		} else if(fg_mode == LC_FG_VU_METER){
+			break;
+		case lc_fg::vu_meter:
 			//render the VU meter based on the offset value
 			fill_vu_meter(led_color_array, num_leds, fg_rainbow, fg_offset);
+			break;
 		}
 
 		//update any trigger animations currently in the buffer
@@ -183,139 +209,136 @@ void Animation::update()
 
 void Animation::trigger_event(uint16_t trigger_type)
 {
+	//we'll need some local variables for making the trigger event that can be used in the switch statements:
+	TriggerEvent new_event;
+	uint32_t adjusted_color;
 	//this can only happen once per frame, so it doesn't matter if you call it once or 200 times during a frame.
-	if(trigger_type == LC_TRIGGER_BG){
+	switch(trigger_type){
+	case lc_trigger::bg:
 		bg_event_has_occurred = true;
-	} else if(trigger_type == LC_TRIGGER_FG){
+		break;
+	case lc_trigger::fg:
 		fg_event_has_occurred = true;
-	} else if(trigger_type == LC_TRIGGER_COLOR_PULSE){
+		break;
+	case lc_trigger::color_pulse:
 		//make a new solid color pulse of the current trigger rainbow color and add it to the active_triggers array.
-		TriggerEvent new_pulse = {
-			.type = trigger_type,
-			.total_frames = LC_COLOR_PULSE_FADE_IN_FRAMES + LC_COLOR_PULSE_FADE_OUT_FRAMES,
-			.current_frame = 0,
-			.color = trigger_rainbow.colors[current_trigger_rainbow_color],
-			.offset = random(LC_MAX_OFFSET),
-			.last_update = 0,
-			.event_has_completed = false,
-			.direction = LEFT
-		};
-		add_trigger_event(new_pulse);
-	} else if(trigger_type == LC_TRIGGER_COLOR_PULSE_SLOW_FADE){
+		new_event.type = trigger_type;
+		new_event.total_frames = LC_COLOR_PULSE_FADE_IN_FRAMES + LC_COLOR_PULSE_FADE_OUT_FRAMES;
+		new_event.current_frame = 0;
+		new_event.color = trigger_rainbow.colors[current_trigger_rainbow_color];
+		new_event.offset = random(LC_MAX_OFFSET);
+		new_event.last_update = 0;
+		new_event.event_has_completed = false;
+		new_event.direction = LEFT;
+		add_trigger_event(new_event);
+		break;
+	case lc_trigger::color_pulse_slow_fade:
 		//make a new color pulse of the offset current trigger_rainbow color based on current_frame and add it to the active_triggers array.
-		uint32_t adjusted_color = slow_fade_color_adjust(trigger_rainbow, current_trigger_rainbow_color, current_trigger_fade_frame, total_trigger_fade_frames);
-		TriggerEvent new_pulse = {
-			.type = trigger_type,
-			.total_frames = LC_COLOR_PULSE_FADE_IN_FRAMES + LC_COLOR_PULSE_FADE_OUT_FRAMES,
-			.current_frame = 0,
-			.color = adjusted_color,
-			.offset = random(LC_MAX_OFFSET),
-			.last_update = 0,
-			.event_has_completed = false,
-			.direction = LEFT
-		};
-		add_trigger_event(new_pulse);
-	} else if(trigger_type == LC_TRIGGER_COLOR_PULSE_RAINBOW){
+		adjusted_color = slow_fade_color_adjust(trigger_rainbow, current_trigger_rainbow_color, current_trigger_fade_frame, total_trigger_fade_frames);
+		new_event.type = trigger_type;
+		new_event.total_frames = LC_COLOR_PULSE_FADE_IN_FRAMES + LC_COLOR_PULSE_FADE_OUT_FRAMES;
+		new_event.current_frame = 0;
+		new_event.color = adjusted_color;
+		new_event.offset = random(LC_MAX_OFFSET);
+		new_event.last_update = 0;
+		new_event.event_has_completed = false;
+		new_event.direction = LEFT;
+		add_trigger_event(new_event);
+		break;
+	case lc_trigger::color_pulse_rainbow:
 		//make a new color pulse of the current trigger_rainbow color and add it to the active_triggers array and increment the trigger_rainbow color.
-		TriggerEvent new_pulse = {
-			.type = trigger_type,
-			.total_frames = LC_COLOR_PULSE_FADE_IN_FRAMES + LC_COLOR_PULSE_FADE_OUT_FRAMES,
-			.current_frame = 0,
-			.color = trigger_rainbow.colors[current_trigger_rainbow_color],
-			.offset = random(LC_MAX_OFFSET),
-			.last_update = 0,
-			.event_has_completed = false,
-			.direction = LEFT
-		};
-		add_trigger_event(new_pulse);
+		new_event.type = trigger_type;
+		new_event.total_frames = LC_COLOR_PULSE_FADE_IN_FRAMES + LC_COLOR_PULSE_FADE_OUT_FRAMES;
+		new_event.current_frame = 0;
+		new_event.color = trigger_rainbow.colors[current_trigger_rainbow_color];
+		new_event.offset = random(LC_MAX_OFFSET);
+		new_event.last_update = 0;
+		new_event.event_has_completed = false;
+		new_event.direction = LEFT;
+		add_trigger_event(new_event);
 		increment_trigger_rainbow();
-	} else if(trigger_type == LC_TRIGGER_COLOR_SHOT){
+		break;
+	case lc_trigger::color_shot:
 		//make a new solid color shot of the current trigger rainbow color and add it to the active_triggers array.
 		last_color_shot_direction = !last_color_shot_direction;
-		TriggerEvent new_shot = {
-			.type = trigger_type,
-			.total_frames = LC_COLOR_SHOT_FRAMES,
-			.current_frame = 0,
-			.color = trigger_rainbow.colors[current_trigger_rainbow_color],
-			.offset = LC_DEFAULT_SHOT_POSITION,
-			.last_update = 0,
-			.event_has_completed = false,
-			.direction = last_color_shot_direction
-		};
-		add_trigger_event(new_shot);
-	} else if(trigger_type == LC_TRIGGER_COLOR_SHOT_SLOW_FADE){
+		new_event.type = trigger_type;
+		new_event.total_frames = LC_COLOR_SHOT_FRAMES;
+		new_event.current_frame = 0;
+		new_event.color = trigger_rainbow.colors[current_trigger_rainbow_color];
+		new_event.offset = LC_DEFAULT_SHOT_POSITION;
+		new_event.last_update = 0;
+		new_event.event_has_completed = false;
+		new_event.direction = last_color_shot_direction;
+		add_trigger_event(new_event);
+		break;
+	case lc_trigger::color_shot_slow_fade:
 		//make a new color shot of the offset current trigger_rainbow color based on current_frame and add it to the active_triggers array.
-		uint32_t adjusted_color = slow_fade_color_adjust(trigger_rainbow, current_trigger_rainbow_color, current_trigger_fade_frame, total_trigger_fade_frames);
+		adjusted_color = slow_fade_color_adjust(trigger_rainbow, current_trigger_rainbow_color, current_trigger_fade_frame, total_trigger_fade_frames);
 		last_color_shot_direction = !last_color_shot_direction;
-		TriggerEvent new_shot = {
-			.type = trigger_type,
-			.total_frames = LC_COLOR_SHOT_FRAMES,
-			.current_frame = 0,
-			.color = adjusted_color,
-			.offset = LC_DEFAULT_SHOT_POSITION,
-			.last_update = 0,
-			.event_has_completed = false,
-			.direction = last_color_shot_direction
-		};
-		add_trigger_event(new_shot);
-	} else if(trigger_type == LC_TRIGGER_COLOR_SHOT_RAINBOW){
+		new_event.type = trigger_type;
+		new_event.total_frames = LC_COLOR_SHOT_FRAMES;
+		new_event.current_frame = 0;
+		new_event.color = adjusted_color;
+		new_event.offset = LC_DEFAULT_SHOT_POSITION;
+		new_event.last_update = 0;
+		new_event.event_has_completed = false;
+		new_event.direction = last_color_shot_direction;
+		add_trigger_event(new_event);
+		break;
+	case lc_trigger::color_shot_rainbow:
 		//make a new color shot of the current trigger_rainbow color and add it to the active_triggers array and increment the trigger_rainbow color.
 		increment_trigger_rainbow();
 		//change direction
 		last_color_shot_direction = !last_color_shot_direction;
-		TriggerEvent new_shot = {
-			.type = trigger_type,
-			.total_frames = LC_COLOR_SHOT_FRAMES,
-			.current_frame = 0,
-			.color = trigger_rainbow.colors[current_trigger_rainbow_color],
-			.offset = LC_DEFAULT_SHOT_POSITION,
-			.last_update = 0,
-			.event_has_completed = false,
-			.direction = last_color_shot_direction
-		};
-		add_trigger_event(new_shot);
+		new_event.type = trigger_type;
+		new_event.total_frames = LC_COLOR_SHOT_FRAMES;
+		new_event.current_frame = 0;
+		new_event.color = trigger_rainbow.colors[current_trigger_rainbow_color];
+		new_event.offset = LC_DEFAULT_SHOT_POSITION;
+		new_event.last_update = 0;
+		new_event.event_has_completed = false;
+		new_event.direction = last_color_shot_direction;
+		add_trigger_event(new_event);
 		increment_trigger_rainbow();
-	} else if(trigger_type == LC_TRIGGER_FLASH){
+		break;
+	case lc_trigger::flash:
 		//make a new solid color flash the current trigger rainbow color and add it to the active_triggers array.
-		TriggerEvent new_flash = {
-			.type = trigger_type,
-			.total_frames = LC_FLASH_FADE_IN_FRAMES + LC_FLASH_FADE_OUT_FRAMES,
-			.current_frame = 0,
-			.color = trigger_rainbow.colors[current_trigger_rainbow_color],
-			.offset = 0,
-			.last_update = 0, /* not needed for flashes */
-			.event_has_completed = false,
-			.direction = LEFT
-		};
-		add_trigger_event(new_flash);
-	} else if(trigger_type == LC_TRIGGER_FLASH_SLOW_FADE){
+		new_event.type = trigger_type;
+		new_event.total_frames = LC_FLASH_FADE_IN_FRAMES + LC_FLASH_FADE_OUT_FRAMES;
+		new_event.current_frame = 0;
+		new_event.color = trigger_rainbow.colors[current_trigger_rainbow_color];
+		new_event.offset = 0;
+		new_event.last_update = 0; /* not needed for flashes */
+		new_event.event_has_completed = false;
+		new_event.direction = LEFT;
+		add_trigger_event(new_event);
+		break;
+	case lc_trigger::flash_slow_fade:
 		//make a new flash of the offset current trigger_rainbow color based on current_frame and add it to the active_triggers array.
-		uint32_t adjusted_color = slow_fade_color_adjust(trigger_rainbow, current_trigger_rainbow_color, current_trigger_fade_frame, total_trigger_fade_frames);
-		TriggerEvent new_flash = {
-			.type = trigger_type,
-			.total_frames = LC_FLASH_FADE_IN_FRAMES + LC_FLASH_FADE_OUT_FRAMES,
-			.current_frame = 0,
-			.color = adjusted_color,
-			.offset = 0, /* not needed for flashes */
-			.last_update = 0,
-			.event_has_completed = false,
-			.direction = LEFT
-		};
-		add_trigger_event(new_flash);
-	} else if(trigger_type == LC_TRIGGER_FLASH_RAINBOW){
+		adjusted_color = slow_fade_color_adjust(trigger_rainbow, current_trigger_rainbow_color, current_trigger_fade_frame, total_trigger_fade_frames);
+		new_event.type = trigger_type;
+		new_event.total_frames = LC_FLASH_FADE_IN_FRAMES + LC_FLASH_FADE_OUT_FRAMES;
+		new_event.current_frame = 0;
+		new_event.color = adjusted_color;
+		new_event.offset = 0; /* not needed for flashes */
+		new_event.last_update = 0;
+		new_event.event_has_completed = false;
+		new_event.direction = LEFT;
+		add_trigger_event(new_event);
+		break;
+	case lc_trigger::flash_rainbow:
 		//make a new flash of the current trigger_rainbow color and add it to the active_triggers array and increment the trigger_rainbow color.
-		TriggerEvent new_flash = {
-			.type = trigger_type,
-			.total_frames = LC_FLASH_FADE_IN_FRAMES + LC_FLASH_FADE_OUT_FRAMES,
-			.current_frame = 0,
-			.color = trigger_rainbow.colors[current_trigger_rainbow_color],
-			.offset = 0, /* not needed for flashes */
-			.last_update = 0,
-			.event_has_completed = false,
-			.direction = LEFT
-		};
-		add_trigger_event(new_flash);
+		new_event.type = trigger_type;
+		new_event.total_frames = LC_FLASH_FADE_IN_FRAMES + LC_FLASH_FADE_OUT_FRAMES;
+		new_event.current_frame = 0;
+		new_event.color = trigger_rainbow.colors[current_trigger_rainbow_color];
+		new_event.offset = 0; /* not needed for flashes */
+		new_event.last_update = 0;
+		new_event.event_has_completed = false;
+		new_event.direction = LEFT;
+		add_trigger_event(new_event);
 		increment_trigger_rainbow();
+		break;
 	}
 }
 
@@ -375,8 +398,8 @@ void Animation::update_trigger_animations()
 	//update bg_event based on modes:
 	if(bg_event_has_occurred){
 		//only update certain modes:
-		if( (bg_mode == LC_BG_SOLID) ||
-				(bg_mode == LC_BG_SLOW_FADE) ) {
+		if( (bg_mode == lc_bg::solid) ||
+			(bg_mode == lc_bg::slow_fade) ) {
 			//increment the rainbow to the next color and reset the current_bg_frame to 0.
 			increment_bg_rainbow();
 			current_bg_frame = 0;
@@ -386,10 +409,10 @@ void Animation::update_trigger_animations()
 
 	//update bg_event based on modes:
 	if(fg_event_has_occurred){
-		if( (fg_mode == LC_FG_MARQUEE_SOLID_FIXED) ||
-			(fg_mode == LC_FG_MARQUEE_SOLID) ||
-			(fg_mode == LC_FG_MARQUEE_SLOW_FADE_FIXED) ||
-			(fg_mode == LC_FG_MARQUEE_SLOW_FADE) ){
+		if( (fg_mode == lc_fg::marquee_solid_fixed) ||
+			(fg_mode == lc_fg::marquee_solid) ||
+			(fg_mode == lc_fg::marquee_slow_fade_fixed) ||
+			(fg_mode == lc_fg::marquee_slow_fade) ){
 			//increment the rainbow to the next color and reset the current_marquee_fade_frame to 0.
 			increment_fg_rainbow();
 			current_marquee_fade_frame = 0;
@@ -402,9 +425,9 @@ void Animation::update_trigger_animations()
 		for(int i=0; i<num_trigger_events; i++){
 			//do the update based on the type of trigger event.
 			//once created, the color will not change anymore, so the animations can all be carried out together for each type
-			if(	active_triggers[i].type == LC_TRIGGER_COLOR_PULSE ||
-				active_triggers[i].type == LC_TRIGGER_COLOR_PULSE_SLOW_FADE ||
-				active_triggers[i].type == LC_TRIGGER_COLOR_PULSE_RAINBOW ){
+			if(	active_triggers[i].type == lc_trigger::color_pulse ||
+				active_triggers[i].type == lc_trigger::color_pulse_slow_fade ||
+				active_triggers[i].type == lc_trigger::color_pulse_rainbow ){
 				//animate a color pulse at the correct offset based on the current_frames for the event.
 
 				//We can make an array that notes the offset position of each LED:
@@ -473,9 +496,9 @@ void Animation::update_trigger_animations()
 						}
 					}
 				}//fade_in or fade_out
-			} else if(active_triggers[i].type == LC_TRIGGER_COLOR_SHOT ||
-							active_triggers[i].type == LC_TRIGGER_COLOR_SHOT_SLOW_FADE ||
-							active_triggers[i].type == LC_TRIGGER_COLOR_SHOT_RAINBOW ){
+			} else if(	active_triggers[i].type == lc_trigger::color_shot ||
+						active_triggers[i].type == lc_trigger::color_shot_slow_fade ||
+						active_triggers[i].type == lc_trigger::color_shot_rainbow ){
 				//animate a color shot at the correct offset based on the current_frames for the event.
 
 				//for color shots, we need to calculate the offset as a proportion of the total frames relative to the starting position.
@@ -528,9 +551,9 @@ void Animation::update_trigger_animations()
 						break;
 					}
 				}
-			} else if(active_triggers[i].type == LC_TRIGGER_FLASH ||
-							active_triggers[i].type == LC_TRIGGER_FLASH_SLOW_FADE ||
-							active_triggers[i].type == LC_TRIGGER_FLASH_RAINBOW ){
+			} else if(	active_triggers[i].type == lc_trigger::flash ||
+						active_triggers[i].type == lc_trigger::flash_slow_fade ||
+						active_triggers[i].type == lc_trigger::flash_rainbow ){
 				//flash all LEDs with an overlayed color based on the current_frames for the event.
 				//depending on fade_in or fade_out behave differently:
 				if(active_triggers[i].current_frame <= LC_FLASH_FADE_IN_FRAMES){
@@ -877,7 +900,7 @@ void Animation::increment_frame()
 	if(current_bg_frame >= total_bg_frames){
 		current_bg_frame = 0;
 		//depending on the mode, increment the rainbow when the frames overflow so the rainbow will advance to the next color:
-		if(bg_mode == LC_BG_SLOW_FADE){
+		if(bg_mode == lc_bg::slow_fade){
 			increment_bg_rainbow();
 		}
 	}
@@ -892,7 +915,8 @@ void Animation::increment_frame()
 	if(current_marquee_fade_frame >= total_marquee_fade_frames){
 		current_marquee_fade_frame = 0;
 		//depending on the mode, increment the rainbow when the frames overflow so the rainbow will advance to the next color:
-		if(fg_mode == LC_FG_MARQUEE_SLOW_FADE){
+		if(	fg_mode == lc_fg::marquee_slow_fade ||
+			fg_mode == lc_fg::marquee_slow_fade_fixed){
 			increment_fg_rainbow();
 		}
 	}
