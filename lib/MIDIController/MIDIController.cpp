@@ -26,6 +26,138 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 #include <MIDIController.h>
 
+//init the hardware MIDI:
+MIDI_CREATE_INSTANCE(HARDWARE_MIDI_TYPE, HARDWARE_MIDI_INTERFACE, MIDI);
+
+MIDIController::MIDIController()
+{
+
+}
+
+/* ----- PUBLIC FUNCTIONS BELOW ----- */
+
+void MIDIController::init(void)
+{
+	//init the hardware MIDI interface
+	MIDI.begin(MIDI_CHANNEL_OMNI);
+	usbMIDI.begin();
+}
+
+void MIDIController::update(void)
+{
+	//this takes any new raw MIDI data bytes and calls the appropriate handler functions to update the controller.
+	process_MIDI();
+}
+
+/* ----- END PUBLIC FUNCTIONS ----- */
+/* ----- PRIVATE FUNCTIONS BELOW ----- */
+
+void MIDIController::process_MIDI(void)
+{
+	if(MIDI.read()){
+		uint8_t type = MIDI.getType();
+		uint8_t channel = MIDI.getChannel();
+		uint8_t data_1 = MIDI.getData1();
+		uint8_t data_2 = MIDI.getData2();
+		assign_MIDI_handlers(type, channel, data_1, data_2);
+	}
+	if(usbMIDI.read()){
+		uint8_t type = usbMIDI.getType();
+		uint8_t channel = usbMIDI.getChannel();
+		uint8_t data_1 = usbMIDI.getData1();
+		uint8_t data_2 = usbMIDI.getData2();
+		assign_MIDI_handlers(type, channel, data_1, data_2);
+	}
+}
+
+void MIDIController::assign_MIDI_handlers(uint8_t type, uint8_t channel, uint8_t data_1, uint8_t data_2)
+{
+	switch(type){
+	case usbMIDI.NoteOff:
+		handle_note_off(channel, data_1, data_2);
+		break;
+	case usbMIDI.NoteOn:
+		handle_note_on(channel, data_1, data_2);
+		break;
+	case usbMIDI.AfterTouchPoly:
+		handle_aftertouch_poly(channel, data_1, data_2);
+		break;
+	case usbMIDI.ControlChange:
+		handle_control_change(channel, data_1, data_2);
+		break;
+	case usbMIDI.ProgramChange:
+		handle_program_change(channel, data_1);
+		break;
+	case usbMIDI.AfterTouchChannel:
+		handle_aftertouch_channel(channel, data_1);
+		break;
+	case usbMIDI.PitchBend:
+		uint16_t pitch_bend = (data_2<<7) + data_1 - 8192;
+		handle_pitch_bend(channel, pitch_bend);
+		break;
+	case usbMIDI.TuneRequest:
+		handle_tune_request();
+		break;
+	case usbMIDI.SystemReset:
+		handle_system_reset();
+		break;
+	default:
+		#ifdef MIDI_DEBUG_IGNORED
+			Serial.print("MIDI Message of type ");
+			Serial.print(type);
+			Serial.println(" ignored.");
+		#endif
+		break;
+	}
+
+}
+
+void MIDIController::handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity)
+{
+
+}
+
+void MIDIController::handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity)
+{
+	
+}
+
+void MIDIController::handle_pitch_bend(uint8_t channel, uint8_t pitch)
+{
+	
+}
+
+void MIDIController::handle_aftertouch_channel(uint8_t channel, uint8_t pressure)
+{
+	
+}
+
+void MIDIController::handle_aftertouch_poly(uint8_t channel, uint8_t note, uint8_t velocity)
+{
+	
+}
+
+void MIDIController::handle_program_change(uint8_t channel, uint8_t program)
+{
+	
+}
+
+void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uint8_t cc_value)
+{
+	
+}
+
+void MIDIController::handle_tune_request()
+{
+	
+}
+
+void MIDIController::handle_system_reset()
+{
+	
+}
+
+/* ----- END PRIVATE FUNCTIONS ----- */
 /*
 
 //Below are functions taken out of the oMIDItone class that need to be reintegrated with the controller class:

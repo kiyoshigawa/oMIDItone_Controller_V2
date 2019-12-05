@@ -46,10 +46,10 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define LED_SPEED NEO_KHZ800
 #define LED_BRIGHTNESS 255
 
-//these are default lighting info for the heads:
-#define DEFAULT_BG_MODE LC_BG_RAINBOW_SLOW_ROTATE
-#define DEFAULT_FG_MODE LC_FG_NONE
-#define DEFAULT_TRIGGER_MODE LC_TRIGGER_COLOR_PULSE
+//these next several #defines are default lighting info for the heads:
+#define DEFAULT_BG_MODE lc_bg::rainbow_slow_rotate
+#define DEFAULT_FG_MODE lc_fg::none
+#define DEFAULT_TRIGGER_MODE lc_trigger::color_pulse
 
 #define DEFAULT_OM1_BG_RAINBOW 16
 #define DEFAULT_OM2_BG_RAINBOW 17
@@ -72,6 +72,9 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 #define DEFAULT_NOTE_TRIGGER_SETTING true
 #define DEFAULT_LIGHTING_ENABLED_SETTING true
+
+//this is the MIDIController object that keeps track of the MIDI information so we can assign heads to play notes properly:
+MIDIController mc = MIDIController();
 
 //this controls whether lighting is enabled or not
 bool lighting_is_enabled = DEFAULT_LIGHTING_ENABLED_SETTING;
@@ -296,7 +299,7 @@ void setup()
 		Serial.println("Welcome to oMIDItone.");
 		Serial.println("Beginning initialization - this may take several minutes...");
 	#endif
-
+	
 	//set up the lighting controller with the animations
 	lc.init();
 
@@ -311,7 +314,7 @@ void setup()
 	}
 
 	//initialize the MIDIController:
-	//mc.init();
+	mc.init();
 
 	#ifdef BOOT_DEBUG
 		Serial.println("Init Complete, awaiting MIDI input.");
@@ -321,7 +324,7 @@ void setup()
 void loop()
 {
 	//this will update the MIDI info on the controller to be current for use below:
-	//mc.update();
+	mc.update();
 
 	//This will decide which oMIDItone to use for which note, and assign them to play
 	update_oMIDItones();

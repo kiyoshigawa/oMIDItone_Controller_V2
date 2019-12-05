@@ -31,7 +31,13 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #include <MIDI.h>
 #include <usb_midi.h>
 
-//Some definitions about MIDI to make the code easier to read:
+//uncomment this to get debug messages about ignored MIDI messages
+#define MIDI_DEBUG_IGNORED
+
+//defaults used whne creating the hardware MIDI interface
+//see teensy MIDI.h library documentation for more info
+#define HARDWARE_MIDI_TYPE HardwareSerial
+#define HARDWARE_MIDI_INTERFACE Serial1
 
 //This is a non-valid note number for MIDI to designate no note should be played.
 #define NO_NOTE 128
@@ -39,14 +45,17 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 //This is a non-valid channel number for MIDI to designate no current channel.
 #define NO_CHANNEL 17
 
-//This is the frequency of the note A - typically 440 Hz.
-#define NOTE_A 440
-
 //This is how many MIDI notes there are. It should always be 128
 #define NUM_MIDI_NOTES 128
 
+//This is how many MIDI CC message types there are. It should always be 128
+#define NUM_MIDI_CC_TYPES 128
+
 //This is the number of MIDI channels. Should always be 16, unless MIDI changed sometime in the last decade.
 #define NUM_MIDI_CHANNELS 16
+
+//this is the most concurrent midi notes that the controler will keep track of at any given time:
+#define MAX_CONCURRENT_MIDI_NOTES 20
 
 //these are the default values for pitch bend range:
 #define DEFAULT_MIDI_PITCH_BEND_SEMITONES 2
@@ -55,7 +64,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define MAX_PITCH_BEND_CENTS 99
 
 //this is the center value for pitch bending - if the pitch_bend vlaue is set to this, it will play the note without any pitch bending.
-//Teensy MIDI sends a number form -8192 to 8191, so I am using 0 as the center here. Typical MIDI center is 8192, adjust as needed.
+//Teensy MIDI sends a number from -8192 to 8191, so I am using 0 as the center here. Typical MIDI center is 8192, adjust as needed.
 #define CENTER_PITCH_BEND 0
 
 //this is how much I multiplied the cent frequency ratios by to make things work with integer math
@@ -70,6 +79,110 @@ const uint32_t midi_freqs[NUM_MIDI_NOTES] = {122309, 115446, 108968, 102848, 970
 //this is the ratio that frequencies change from -99 cents to 99 cents, multiplied by CENT_FREQUENCY_RATIO_MULTIPLIER, in this case 1,000,000.
 const uint32_t cent_frequency_ratios[199] = {1058851, 1058240, 1057629, 1057018, 1056408, 1055798, 1055188, 1054579, 1053970, 1053361, 1052753, 1052145, 1051537, 1050930, 1050323, 1049717, 1049111, 1048505, 1047899, 1047294, 1046689, 1046085, 1045481, 1044877, 1044274, 1043671, 1043068, 1042466, 1041864, 1041262, 1040661, 1040060, 1039459, 1038859, 1038259, 1037660, 1037060, 1036462, 1035863, 1035265, 1034667, 1034070, 1033472, 1032876, 1032279, 1031683, 1031087, 1030492, 1029897, 1029302, 1028708, 1028114, 1027520, 1026927, 1026334, 1025741, 1025149, 1024557, 1023965, 1023374, 1022783, 1022192, 1021602, 1021012, 1020423, 1019833, 1019244, 1018656, 1018068, 1017480, 1016892, 1016305, 1015718, 1015132, 1014545, 1013959, 1013374, 1012789, 1012204, 1011619, 1011035, 1010451, 1009868, 1009285, 1008702, 1008120, 1007537, 1006956, 1006374, 1005793, 1005212, 1004632, 1004052, 1003472, 1002892, 1002313, 1001734, 1001156, 1000578, 1000000, 999423, 998845, 998269, 997692, 997116, 996540, 995965, 995390, 994815, 994240, 993666, 993092, 992519, 991946, 991373, 990801, 990228, 989657, 989085, 988514, 987943, 987373, 986803, 986233, 985663, 985094, 984525, 983957, 983388, 982821, 982253, 981686, 981119, 980552, 979986, 979420, 978855, 978289, 977725, 977160, 976596, 976032, 975468, 974905, 974342, 973779, 973217, 972655, 972093, 971532, 970971, 970410, 969850, 969290, 968730, 968171, 967612, 967053, 966494, 965936, 965379, 964821, 964264, 963707, 963151, 962594, 962039, 961483, 960928, 960373, 959818, 959264, 958710, 958157, 957603, 957050, 956498, 955945, 955393, 954842, 954290, 953739, 953188, 952638, 952088, 951538, 950989, 950439, 949891, 949342, 948794, 948246, 947698, 947151, 946604, 946058, 945511, 944965, 944420};
 
+//this is a struct for storing MIDI note info:
+//it will be kept up to date on every MIDIController::update() call with the currently playing notes.
+struct midi_note{
+	//this is the MIDI note number from 0 to 127
+	uint8_t note;
+	//this is the MIDI channel from 1-16
+	uint8_t channel;
+	//this is the MIDI note velocity from 0-127
+	uint8_t velocity;
+	//this is the calculated inverted frequency based on the current note manipulations.
+	//it is calculated when the note is turned on, and again on updates that effect notes.
+	//it will always be up-to-date after any MIDIController::update();
+	uint32_t freq;
+};
+
+//this MIDIController class is designed to keep track of the current state of all MIDI notes that have been sent since it was created.
+//it will log both hardware and USB MIDI information and keep and up-to-date log of all currently playing notes, as well as CC message data
+//You should be able to use this to control synths based on the 'current state-of-the-synth' public variables provided by the class.
+class MIDIController{
+	public:
+		//the constructor function for the controller
+		MIDIController();
+
+		//this needs to be called prior to using any of the MIDIController features.
+		void init(void);
+
+		//this needs ot be called regularly in your loop to keep the public variables up-to-date.
+		void update(void);
+
+		//this is an array that tracks that current state of MIDI notes on the controller.
+		//it will be regularly updated by the update() function to take into account things like pitch bends and CC messages that effect note values.
+		midi_note current_notes[MAX_CONCURRENT_MIDI_NOTES];
+
+		//this tracks the current pitch bend value for each channel
+		//it can be a number from -8191 to 8191
+		//it is regularly updated by incoming pitch bend messages
+		uint16_t current_pitch_bends[NUM_MIDI_CHANNELS];
+
+		//this tracks the current channel aftertouch values
+		//it is regularly updated by incoming Channel pressure messages
+		//Note that aftertouch only applies to currently playing notes by default,
+		//so this is just usable as a reference and does not control anything to do with new notes
+		uint8_t current_channel_aftertouches[NUM_MIDI_CHANNELS];
+
+		//this tracks the current program mode for each channel
+		//it is regularly updated by incoming program change messages
+		uint8_t current_program_modes[NUM_MIDI_CHANNELS];
+
+		//this tracks the most recently received values for MIDI CC messages
+		//for CC messages with defined actions like CC7 (Volume), the MIDIController will automatically adjust note values
+		//for others it will be up to the user to write functions that will handle actions depending on the CC message
+		//this array is present so that people can check the most recent CC message values at any time and take appropriate action as needed
+		uint8_t most_recent_cc_values[NUM_MIDI_CC_TYPES];
+	private:
+		//this will handle the hardware MIDI messages and usbMIDI messages 
+		//and call the appropriate functions depending on the message received
+		void process_MIDI(void);
+
+		//this will take the raw data from the process_hardware_MIDI and process_USB_MIDI functions and call the appropriate handle_* functions
+		//it will also allow for debug output of ignored messages id MIDI_DEBUG_IGNORED is true
+		void assign_MIDI_handlers(uint8_t type, uint8_t channel, uint8_t data_1, uint8_t data_2);
+
+		//this handles note_on messages received by either hardware or usb MIDI
+		void handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity);
+
+		//this handles note off messages received by either hardware or usb MIDI
+		void handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity);
+
+		//this handles pitch bend messages received by either hardware or usb MIDI
+		void handle_pitch_bend(uint8_t channel, uint8_t pitch);
+
+		//this handles channel aftertouch messages received by either hardware or usb MIDI
+		void handle_aftertouch_channel(uint8_t channel, uint8_t pressure);
+
+		//this handles poly aftertouch messages received by either hardware or usb MIDI
+		void handle_aftertouch_poly(uint8_t channel, uint8_t note, uint8_t velocity);
+
+		//this handles program change messages received by either hardware or usb MIDI
+		void handle_program_change(uint8_t channel, uint8_t program);
+
+		//this handles control change messages received by either hardware or usb MIDI
+		void handle_control_change(uint8_t channel, uint8_t cc_type, uint8_t cc_value);
+
+		//this handles tune request messages received by either hardware or usb MIDI
+		void handle_tune_request();
+
+		//this handles system reset messages received by either hardware or usb MIDI
+		void handle_system_reset();
+
+		//this will add a note to the note array using the current values for pitch bends and applicable CC information
+		//If the note is already in the note array, it will be moved to the end of the line, and the remaining notes will be shifted down.
+		//if the note array is full and a new note is added, the oldest note will be removed.
+		void add_note(uint8_t channel, uint8_t note, uint8_t velocity);
+
+		//this will remove a note from the note array and shift the remaining notes down
+		//if the note is not in the array, nothing will change
+		void rm_note(uint8_t channel, uint8_t note);
+
+		//this will set the pitch bend value and update all the notes currently in the current_notes array's frequencies to match the new value
+		void set_pitch_bend(uint16_t value, uint8_t channel);
+
+		//this is a function to print the current_notes array with some formatting for debug pruposes
+		void print_current_notes_array(void);
+};
 
 #endif
 
