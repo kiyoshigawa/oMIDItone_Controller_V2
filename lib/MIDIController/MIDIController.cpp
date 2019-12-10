@@ -29,9 +29,28 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 //init the hardware MIDI:
 MIDI_CREATE_INSTANCE(HARDWARE_MIDI_TYPE, HARDWARE_MIDI_INTERFACE, MIDI);
 
-MIDIController::MIDIController()
+MIDIController::MIDIController(void)
 {
-
+	num_current_notes = 0;
+	tune_request_was_received = false;
+	//init things in arrays NUM_MIDI_CHANNELS long:
+	for(int i=0; i<NUM_MIDI_CHANNELS; i++){
+		current_channel_aftertouches[i] = NO_NOTE; //this doesn't mater, it's just a placeholder. It will only effect currently playing notes
+		current_pitch_bends[i] = 0;
+		current_program_modes[i] = 0; //0 is the default program mode per the MIDI spec
+	}
+	//init the CC array to a default of NO_NOTE for all CC to indicate that it has not yet been set
+	for(int i=0; i<NUM_MIDI_CC_TYPES; i++){
+		most_recent_cc_values[i] = NO_NOTE;
+	}
+	//init the RPN 0 Array:
+	for(int i=0; i<MIDI_NUM_RPN_0; i++){
+		rpn_0_array[i] = MIDI_RPN_NULL;
+	}
+	//init the RPN 3D Array:
+	for(int i=0; i<MIDI_NUM_RPN_3D; i++){
+		rpn_3d_array[i] = MIDI_RPN_NULL;
+	}
 }
 
 /* ----- PUBLIC FUNCTIONS BELOW ----- */
@@ -47,6 +66,17 @@ void MIDIController::update(void)
 {
 	//this takes any new raw MIDI data bytes and calls the appropriate handler functions to update the controller.
 	process_MIDI();
+}
+
+bool MIDIController::tune_request_was_received(void){
+	if(new_tune_request){
+		//reset to false whenever this is called to avoid getting stuck in a tune request loop
+		new_tune_request = false;
+		return true;
+	}
+	else{
+		return false;
+	}
 }
 
 /* ----- END PUBLIC FUNCTIONS ----- */
@@ -109,37 +139,86 @@ void MIDIController::assign_MIDI_handlers(uint8_t type, uint8_t channel, uint8_t
 		#endif
 		break;
 	}
-
 }
 
 void MIDIController::handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity)
-{
-
+{	
+	//TIM: Add some checks here for things like CC7 volume lowering and other options that can effect the note other than pitch bending
+	add_note(channel, note, velocity);
 }
 
 void MIDIController::handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity)
 {
-	
+	//TIM: If you want to take action on a note-off velocity number, do it before removing the note.
+	rm_note(channel, note);
 }
 
-void MIDIController::handle_pitch_bend(uint8_t channel, uint8_t pitch)
+void MIDIController::handle_pitch_bend(uint8_t channel, int16_t pitch)
 {
-	
+	//set the channel pitch bend value
+	current_pitch_bends[channel] = pitch;
+	//If any current notes are on that channel, update their frequencies:
+	for(int i=0; i<num_current_notes; i++){
+		if(current_notes[i].channel == channel){
+			//the pitch bend will be calculated automatically by this function based on the updated current_pitch_bends[channel] value
+			current_notes[i].freq = calculate_note_frequency(channel, current_notes[i].note);
+		}
+	}
+	#ifdef MIDI_DEBUG_PITCH_BEND
+		Serial.print("Pitch Bend: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.println(pitch);
+	#endif
 }
 
 void MIDIController::handle_aftertouch_channel(uint8_t channel, uint8_t pressure)
 {
-	
+	//set the channel aftertouch value
+	current_channel_aftertouches[channel] = pressure;
+	//if any current notes are on that channel, update their velocity to be pressure
+	for(int i=0; i<num_current_notes; i++){
+		if(current_notes[i].channel == channel){
+			//the velocity is set to pressure for all notes on the channel
+			current_notes[i].velocity = pressure;
+		}
+	}
+	#ifdef MIDI_DEBUG_AFTERTOUCH
+		Serial.print("Channel Aftertouch: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.println(pressure);
+	#endif
 }
 
 void MIDIController::handle_aftertouch_poly(uint8_t channel, uint8_t note, uint8_t velocity)
 {
-	
+	//this only effects currently playing notes, and is not stored anywhere.
+	for(int i=0; i<num_current_notes; i++){
+		if(current_notes[i].channel == channel && current_notes[i].note == note){
+			current_notes[i].velocity = velocity;
+		}
+	}
+	#ifdef MIDI_DEBUG_AFTERTOUCH
+		Serial.print("Poly Aftertouch: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.print(note);
+		Serial.print(":");
+		Serial.println(velocity);
+	#endif
 }
 
 void MIDIController::handle_program_change(uint8_t channel, uint8_t program)
 {
-	
+	//This just sets the channel's program number. It's up to whatever's using the controller to handle it.
+	current_program_modes[channel] = program;
+	#ifdef MIDI_DEBUG_SYSTEM
+		Serial.print("Program Change: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.println(program);
+	#endif
 }
 
 void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uint8_t cc_value)
@@ -149,12 +228,118 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 
 void MIDIController::handle_tune_request()
 {
-	
+	//this sets a flag that can be checked by whatever's using the controller to call a tune change
+	tune_request_was_received = true;
+	#ifdef MIDI_DEBUG_SYSTEM
+		Serial.print("Tune Request Received.");
+	#endif
 }
 
 void MIDIController::handle_system_reset()
 {
-	
+	//this will reset the teensy. If you're using another MCU, this won't work.
+	#ifdef MIDI_DEBUG_SYSTEM
+		Serial.print("System reset message received - restarting...");
+		//give time to read the message before the serial buffer gets cleared
+		delay(5000);
+	#endif
+	_softRestart();
+}
+
+void MIDIController::add_note(uint8_t channel, uint8_t note, uint8_t velocity){
+	uint8_t note_position = check_note(channel, note);
+	//if the note isn't already in the array, put it at the end of the array.
+	if(note_position == NOT_IN_ARRAY){
+		current_notes[num_current_notes].channel = channel;
+		current_notes[num_current_notes].note = note;
+		current_notes[num_current_notes].velocity = velocity;
+		current_notes[num_current_notes].freq = calculate_note_frequency(channel, note);
+		num_current_notes++;
+	} else {
+		//if it is in the array, put the note at the end and bend everything back down to where the note used to be.
+		for(int i=note_position; i<num_current_notes; i++){
+			current_notes[i] = current_notes[i+1];
+		}
+		current_notes[num_current_notes-1].channel = channel;
+		current_notes[num_current_notes-1].note = note;
+		current_notes[num_current_notes-1].velocity = velocity;
+		current_notes[num_current_notes-1].freq = calculate_note_frequency(channel, note);
+	}
+	//if note debug is on, this will print the current note array every time a note is added or removed
+	print_current_notes();
+}
+
+void MIDIController::rm_note(uint8_t channel, uint8_t note){
+	uint8_t note_position = check_note(channel, note);
+	//if the note is in the note array, remove it and bend down any other notes.
+	if(note_position != NOT_IN_ARRAY){
+		for(int i=note_position; i<num_current_notes; i++){
+			current_notes[i] = current_notes[i+1];
+		}
+		num_current_notes--;
+		//if note debug is on, this will print the current note array every time a note is added or removed
+		print_current_notes();
+	} else {
+		//Do nothing
+	}
+}
+
+int8_t MIDIController::check_note(uint8_t channel, uint8_t note){
+	//Iterate through the array, and return the note position if it is found.
+	if(num_current_notes == 0){
+		return NOT_IN_ARRAY;
+	} else {
+		for(int i=0; i<num_current_notes; i++){
+			if(current_notes[i].channel == channel && current_notes[i].note == note){
+				return i;
+			}
+		}
+		//if no note is found, return NOT_IN_ARRAY;
+		return NOT_IN_ARRAY;
+	}
+}
+
+uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note){
+	if(current_pitch_bends[channel] == 0){
+		return midi_freqs[note];
+	}
+	else{
+		//TIM: Make pitch bending work here:
+		//For now, just returning unbent note values, because I want something to play
+		return midi_freqs[note];
+	}
+}
+
+void MIDIController::print_current_notes(void){
+	#ifdef MIDI_NOTE_DEBUG
+		if(num_current_notes > 0){
+			Serial.print("Notes: [");
+			for(int i=0; i<num_current_notes-1; i++){
+				Serial.print(current_notes[i].channel);
+				Serial.print(":");
+				Serial.print(current_notes[i].note);
+				#ifdef MIDI_NOTE_DEBUG_VERBOSE
+					Serial.print(":");
+					Serial.print(current_notes[i].velocity);
+					Serial.print(":");
+					Serial.print(current_notes[i].freq);
+				#endif
+				Serial.print(", ");
+			}
+			Serial.print(current_notes[num_current_notes-1].channel);
+			Serial.print(":");
+			Serial.print(current_notes[num_current_notes-1].note);
+			#ifdef MIDI_NOTE_DEBUG_VERBOSE
+				Serial.print(":");
+				Serial.print(current_notes[num_current_notes-1].velocity);
+				Serial.print(":");
+				Serial.print(current_notes[num_current_notes-1].freq);
+			#endif
+			Serial.println("]");
+		} else {
+			Serial.println("Notes: []");
+		}
+	#endif
 }
 
 /* ----- END PRIVATE FUNCTIONS ----- */
@@ -225,93 +410,6 @@ void oMIDItone::set_max_pitch_bend(uint8_t semitones, uint8_t cents){
 	max_pitch_bend_offset = semitones*100 + cents;
 }
 
-//this is just a quick function to print the note array with some formatting:
-void print_current_note_array(){
-	#ifdef NOTE_DEBUG
-		if(num_current_notes > 0){
-			Serial.print("Notes: [");
-			if(num_current_notes > 0){
-				for(int i=0; i<num_current_notes-1; i++){
-					Serial.print(current_note_array[i]);
-					Serial.print(", ");
-				}
-			}
-			Serial.print(current_note_array[num_current_notes-1]);
-			Serial.println("]");
-		} else {
-			Serial.println("Notes: []");
-		}
-	#endif
-}
-
-//This will check to see if a note is in the current_note_array and return the position of the note if it finds one, or return NO_NOTE if it does not.
-int check_note(uint8_t note){
-	//Iterate through the array, and return the note position if it is found.
-	if(num_current_notes == 0){
-		return NO_NOTE;
-	} else {
-		for(int i=0; i<num_current_notes; i++){
-			if(current_note_array[i] == note){
-				return i;
-			}
-		}
-		//if no note is found, return NO_NOTE;
-		return NO_NOTE;
-	}
-}
-
-//This will add a new note to the end of the current_note_array, or relocate the note to the end if it is already in the array.
-//It will also add a velocity value corresponding to that note to the current_velocity_array.
-void add_note(uint8_t note, uint8_t velocity, uint8_t channel){
-	uint8_t note_position = check_note(note);
-	//if the note isn't already in the array, put it at the end of the array.
-	if(note_position == NO_NOTE){
-		current_note_array[num_current_notes] = note;
-		current_velocity_array[num_current_notes] = velocity;
-		current_channel_array[num_current_notes] = channel;
-		num_current_notes++;
-	} else {
-		//if it is in the array, put the note at the end and bend everything back down to where the note used to be.
-		for(int i=note_position; i<num_current_notes; i++){
-			current_note_array[i] = current_note_array[i+1];
-			current_velocity_array[i] = current_velocity_array[i+1];
-			current_channel_array[i] = current_channel_array[i+1];
-		}
-		current_note_array[num_current_notes-1] = note;
-		current_velocity_array[num_current_notes-1] = velocity;
-		current_channel_array[num_current_notes-1] = channel;
-	}
-}
-
-//If a note is in the current_note_array, this will remove it, and the corresponding velocity will be removed from the current_velocity_array
-//and then it will bend the rest of the values down to fill in the gap.
-void remove_note(uint8_t note){
-	uint8_t note_position = check_note(note);
-	//if the note is in the note array, remove it and bend down any other notes.
-	if(note_position != NO_NOTE){
-		for(int i=note_position; i<num_current_notes; i++){
-			current_note_array[i] = current_note_array[i+1];
-			current_velocity_array[i] = current_velocity_array[i+1];
-			current_channel_array[i] = current_channel_array[i+1];
-		}
-		num_current_notes--;
-	} else {
-		//Do nothing
-	}
-	//need to get the head to immediately stop playing the note as well:
-	for(int i=0; i<NUM_OMIDITONES; i++){
-		if(oms[i].currently_playing_note() == note){
-			oms[i].note_off(note);
-		}
-	}
-
-	//and finally change the head_order_array to match the pending_head_order_array when all notes are off
-	if(num_current_notes <= 0){
-		for(int i=0; i<NUM_OMIDITONES; i++){
-			head_order_array[i] = pending_head_order_array[i];
-		}
-	}
-}
 
 //this function moves the head in question to the end of the head_order_array, and shuffles the remaining heads down into its place.
 void pending_head_order_to_end(uint8_t head_number){

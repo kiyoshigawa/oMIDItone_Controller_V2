@@ -236,18 +236,90 @@ elapsedMicros last_lighting_update;
 
 //declare the oMIDItone objects:
 oMIDItone oms[NUM_OMIDITONES] = {
-	oMIDItone(	om1_se_pin, om1_sd_pin, om1_cs1_pin, om1_cs2_pin, om1_analog_feedback_pin, om1_l_channel, 
-				om1_r_channel, om1_l_min, om1_l_max, om1_r_min, om1_r_max, om1_leds, &om1_animation),
-	oMIDItone(	om2_se_pin, om2_sd_pin, om2_cs1_pin, om2_cs2_pin, om2_analog_feedback_pin, om2_l_channel, 
-				om2_r_channel, om2_l_min, om2_l_max, om2_r_min, om2_r_max, om2_leds, &om2_animation),
-	oMIDItone(	om3_se_pin, om3_sd_pin, om3_cs1_pin, om3_cs2_pin, om3_analog_feedback_pin, om3_l_channel, 
-				om3_r_channel, om3_l_min, om3_l_max, om3_r_min, om3_r_max, om3_leds, &om3_animation),
-	oMIDItone(	om4_se_pin, om4_sd_pin, om4_cs1_pin, om4_cs2_pin, om4_analog_feedback_pin, om4_l_channel, 
-				om4_r_channel, om4_l_min, om4_l_max, om4_r_min, om4_r_max, om4_leds, &om4_animation),
-	oMIDItone(	om5_se_pin, om5_sd_pin, om5_cs1_pin, om5_cs2_pin, om5_analog_feedback_pin, om5_l_channel, 
-				om5_r_channel, om5_l_min, om5_l_max, om5_r_min, om5_r_max, om5_leds, &om5_animation),
-	oMIDItone(	om6_se_pin, om6_sd_pin, om6_cs1_pin, om6_cs2_pin, om6_analog_feedback_pin, om6_l_channel, 
-				om6_r_channel, om6_l_min, om6_l_max, om6_r_min, om6_r_max, om6_leds, &om6_animation)
+	oMIDItone(	
+		om1_se_pin, 
+		om1_sd_pin, 
+		om1_cs1_pin, 
+		om1_cs2_pin, 
+		om1_analog_feedback_pin, 
+		om1_l_channel, 
+		om1_r_channel, 
+		om1_l_min, 
+		om1_l_max, 
+		om1_r_min, 
+		om1_r_max, 
+		om1_leds, 
+		&om1_animation),
+	oMIDItone(
+		om2_se_pin, 
+		om2_sd_pin, 
+		om2_cs1_pin, 
+		om2_cs2_pin, 
+		om2_analog_feedback_pin, 
+		om2_l_channel, 
+		om2_r_channel, 
+		om2_l_min, 
+		om2_l_max, 
+		om2_r_min, 
+		om2_r_max, 
+		om2_leds, 
+		&om2_animation),
+	oMIDItone(
+		om3_se_pin, 
+		om3_sd_pin, 
+		om3_cs1_pin, 
+		om3_cs2_pin, 
+		om3_analog_feedback_pin, 
+		om3_l_channel, 
+		om3_r_channel, 
+		om3_l_min, 
+		om3_l_max, 
+		om3_r_min, 
+		om3_r_max, 
+		om3_leds, 
+		&om3_animation),
+	oMIDItone(
+		om4_se_pin, 
+		om4_sd_pin, 
+		om4_cs1_pin, 
+		om4_cs2_pin, 
+		om4_analog_feedback_pin, 
+		om4_l_channel, 
+		om4_r_channel, 
+		om4_l_min, 
+		om4_l_max, 
+		om4_r_min, 
+		om4_r_max, 
+		om4_leds, 
+		&om4_animation),
+	oMIDItone(
+		om5_se_pin, 
+		om5_sd_pin, 
+		om5_cs1_pin, 
+		om5_cs2_pin, 
+		om5_analog_feedback_pin, 
+		om5_l_channel, 
+		om5_r_channel, 
+		om5_l_min, 
+		om5_l_max, 
+		om5_r_min, 
+		om5_r_max, 
+		om5_leds, 
+		&om5_animation),
+	oMIDItone(
+		om6_se_pin, 
+		om6_sd_pin, 
+		om6_cs1_pin, 
+		om6_cs2_pin, 
+		om6_analog_feedback_pin, 
+		om6_l_channel, 
+		om6_r_channel, 
+		om6_l_min, 
+		om6_l_max, 
+		om6_r_min, 
+		om6_r_max, 
+		om6_leds, 
+		&om6_animation),
 };
 
 //This tracks the current head so the iteration isn't always in the same place.
@@ -274,7 +346,8 @@ void pending_head_order_to_end(uint8_t head_number)
 	}
 }
 
-void update_lighting()
+//this function callc the lc.update() function whenever lighting is enabled, and marks the head tunings as invalid after
+void update_lighting(void)
 {
 	if(lighting_is_enabled){
 		int lighting_data_was_sent = lc.update();
@@ -286,12 +359,20 @@ void update_lighting()
 	}
 }
 
-void update_oMIDItones()
+//this iterates through the MIDIController's current note array and assign heads to play the notes
+void update_oMIDItones(void)
 {
+	//first check to see if a tune request was received. If so, call the init function for the heads
+	//this will take a while, so don't automate it into your MIDI files plsthx
+	if(mc.was_tune_request_received()){
+		for(int i=0; i<NUM_OMIDITONES; i++){
+			oms[i].init();
+		}
+	}
 	//TIM: rework this entirely later
 }
 
-void setup()
+void setup(void)
 {
 	#ifdef BOOT_DEBUG
 		Serial.begin(9600);
@@ -302,6 +383,7 @@ void setup()
 	
 	//set up the lighting controller with the animations
 	lc.init();
+	lc.update();
 
 	//initialize the per-head stuff:
 	for(int i=0; i<NUM_OMIDITONES; i++){
@@ -321,7 +403,7 @@ void setup()
 	#endif
 }
 
-void loop()
+void loop(void)
 {
 	//this will update the MIDI info on the controller to be current for use below:
 	mc.update();
