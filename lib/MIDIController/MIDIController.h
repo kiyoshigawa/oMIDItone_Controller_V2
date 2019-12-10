@@ -32,7 +32,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #include <usb_midi.h>
 
 //uncomment this to get debug messages about ignored MIDI messages
-#define MIDI_DEBUG_IGNORED
+//#define MIDI_DEBUG_IGNORED
 
 //uncomment this to get debug messages about MIDI Aftertouch
 #define MIDI_DEBUG_AFTERTOUCH
@@ -232,15 +232,6 @@ struct midi_note{
 	uint32_t freq;
 };
 
-//this allows me to reset the teensy when it receives a MIDI CC121 reset command.
-#define SCB_AIRCR (*(volatile uint32_t *)0xE000ED0C) // Application Interrupt and Reset Control location
-
-void _softRestart(void)
-{
-	Serial.end();  //clears the serial monitor  if used
-	SCB_AIRCR = 0x05FA0004;  //write value for restart
-}
-
 //this MIDIController class is designed to keep track of the current state of all MIDI notes that have been sent since it was created.
 //it will log both hardware and USB MIDI information and keep and up-to-date log of all currently playing notes, as well as CC message data
 //You should be able to use this to control synths based on the 'current state-of-the-synth' public variables provided by the class.
@@ -254,6 +245,9 @@ class MIDIController{
 
 		//this needs to be called regularly in your loop to keep the public variables up-to-date.
 		void update(void);
+
+		//this resets all the MIDIController variables ot their default values
+		void reset_to_default(void);
 
 		//this lets whatever's using the controller check to see if a note was added to the controller
 		//it will reset to false every time it is called
@@ -278,6 +272,10 @@ class MIDIController{
 		//this lets whatever's using the controller check to see if a tune request was received
 		//it will reset to false every time it is called
 		bool tune_request_was_received(void);
+
+		//this lets whatever's using the controller check to see if a system reset request was received
+		//it will reset to false every time it is called
+		bool system_reset_request_was_received(void);
 
 		//this is an array that tracks that current state of MIDI notes on the controller.
 		//it will be regularly updated by the update() function to take into account things like pitch bends and CC messages that effect note values.
@@ -305,7 +303,7 @@ class MIDIController{
 		//for CC messages with defined actions like CC7 (Volume), the MIDIController will automatically adjust note values
 		//for others it will be up to the user to write functions that will handle actions depending on the CC message
 		//this array is present so that people can check the most recent CC message values at any time and take appropriate action as needed
-		uint8_t most_recent_cc_values[NUM_MIDI_CC_TYPES];
+		uint8_t current_cc_values[NUM_MIDI_CHANNELS][NUM_MIDI_CC_TYPES];
 
 		//this an array that tracks the MSB for RPN values where the RPN MSB (CC 101) is equal to 0
 		//the value can be set directly using CC 6 for MSB and CC38 for LSB, 
@@ -345,6 +343,10 @@ class MIDIController{
 		//this handles control change messages received by either hardware or usb MIDI
 		void handle_control_change(uint8_t channel, uint8_t cc_type, uint8_t cc_value);
 
+		//this handles CC6 and CC38 messages received by either hardware or usb MIDI
+		//the results will depend on the most recent RPN messages received on CC100 and CC101
+		void handle_rpn_change(uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t cc6_value, uint8_t cc38_value);
+
 		//this handles tune request messages received by either hardware or usb MIDI
 		void handle_tune_request(void);
 
@@ -378,8 +380,32 @@ class MIDIController{
 		void print_current_notes(void);
 
 		//this is a flag that lets something outside the controller know if a new message was received
+		//calling note_was_added() will return the current value and reset the value to false
+		bool new_note_added;
+
+		//this is a flag that lets something outside the controller know if a new message was received
+		//calling note_was_changed() will return the current value and reset the value to false
+		bool new_note_changed;
+
+		//this is a flag that lets something outside the controller know if a new message was received
+		//calling note_was_removed() will return the current value and reset the value to false
+		bool new_note_removed;
+
+		//this is a flag that lets something outside the controller know if a new message was received
+		//calling cc_message_was_changed() will return the current value and reset the value to false
+		bool new_cc_message;
+
+		//this is a flag that lets something outside the controller know if a new message was received
+		//calling program_mode_was_changed() will return the current value and reset the value to false
+		bool new_program_mode;
+
+		//this is a flag that lets something outside the controller know if a new message was received
 		//calling tune_request_was_received() will return the current value and reset the value to false
 		bool new_tune_request;
+
+		//this is a flag that lets something outside the controller know if a new message was received
+		//calling system_reset_request_was_received() will return the current value and reset the value to false
+		bool new_system_reset_request;
 };
 
 #endif

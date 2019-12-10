@@ -27,7 +27,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #include <oMIDItone.h>
 
 //this will print messages on system startup and init
-#define BOOT_DEBUG
+#define OMIDITONE_DEBUG
 
 //This will turn on/off the debug note messages when notes are added or removed via MIDI
 //#define NOTE_DEBUG
@@ -72,6 +72,15 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 #define DEFAULT_NOTE_TRIGGER_SETTING true
 #define DEFAULT_LIGHTING_ENABLED_SETTING true
+
+//this allows me to reset the teensy when it receives a MIDI CC121 reset command.
+#define SCB_AIRCR (*(volatile uint32_t *)0xE000ED0C) // Application Interrupt and Reset Control location
+
+void _softRestart(void)
+{
+	Serial.end();  //clears the serial monitor  if used
+	SCB_AIRCR = 0x05FA0004;  //write value for restart
+}
 
 //this is the MIDIController object that keeps track of the MIDI information so we can assign heads to play notes properly:
 MIDIController mc = MIDIController();
@@ -362,21 +371,27 @@ void update_lighting(void)
 //this iterates through the MIDIController's current note array and assign heads to play the notes
 void update_oMIDItones(void)
 {
-	//first check to see if a tune request was received. If so, call the init function for the heads
+	
+	//check to see if a tune request was received. If so, call the init function for the heads
 	//this will take a while, so don't automate it into your MIDI files plsthx
-	if(mc.was_tune_request_received()){
+	if(mc.tune_request_was_received()){
 		for(int i=0; i<NUM_OMIDITONES; i++){
 			oms[i].init();
 		}
 	}
-	//TIM: rework this entirely later
 }
 
 void setup(void)
 {
-	#ifdef BOOT_DEBUG
+	#ifdef OMIDITONE_DEBUG
 		Serial.begin(9600);
-		delay(5000); //wait for serial
+		while(!Serial){
+			if(millis() > 5000){
+				//if the USB Serial can't get it's shit together in 5 seconds, move on without it.
+				//this will break debug if it gets to this point
+				break;
+			}
+		}
 		Serial.println("Welcome to oMIDItone.");
 		Serial.println("Beginning initialization - this may take several minutes...");
 	#endif
@@ -398,7 +413,7 @@ void setup(void)
 	//initialize the MIDIController:
 	mc.init();
 
-	#ifdef BOOT_DEBUG
+	#ifdef OMIDITONE_DEBUG
 		Serial.println("Init Complete, awaiting MIDI input.");
 	#endif
 }

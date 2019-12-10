@@ -31,26 +31,7 @@ MIDI_CREATE_INSTANCE(HARDWARE_MIDI_TYPE, HARDWARE_MIDI_INTERFACE, MIDI);
 
 MIDIController::MIDIController(void)
 {
-	num_current_notes = 0;
-	tune_request_was_received = false;
-	//init things in arrays NUM_MIDI_CHANNELS long:
-	for(int i=0; i<NUM_MIDI_CHANNELS; i++){
-		current_channel_aftertouches[i] = NO_NOTE; //this doesn't mater, it's just a placeholder. It will only effect currently playing notes
-		current_pitch_bends[i] = 0;
-		current_program_modes[i] = 0; //0 is the default program mode per the MIDI spec
-	}
-	//init the CC array to a default of NO_NOTE for all CC to indicate that it has not yet been set
-	for(int i=0; i<NUM_MIDI_CC_TYPES; i++){
-		most_recent_cc_values[i] = NO_NOTE;
-	}
-	//init the RPN 0 Array:
-	for(int i=0; i<MIDI_NUM_RPN_0; i++){
-		rpn_0_array[i] = MIDI_RPN_NULL;
-	}
-	//init the RPN 3D Array:
-	for(int i=0; i<MIDI_NUM_RPN_3D; i++){
-		rpn_3d_array[i] = MIDI_RPN_NULL;
-	}
+	reset_to_default();
 }
 
 /* ----- PUBLIC FUNCTIONS BELOW ----- */
@@ -68,10 +49,106 @@ void MIDIController::update(void)
 	process_MIDI();
 }
 
+void MIDIController::reset_to_default(void)
+{
+	num_current_notes = 0;
+	new_tune_request = false;
+	//init things in arrays NUM_MIDI_CHANNELS long:
+	for(int i=0; i<NUM_MIDI_CHANNELS; i++){
+		current_channel_aftertouches[i] = NO_NOTE; //this doesn't mater, it's just a placeholder. It will only effect currently playing notes
+		current_pitch_bends[i] = 0;
+		current_program_modes[i] = 0; //0 is the default program mode per the MIDI spec
+		//init the CC array to a default of NO_NOTE for all CC to indicate that it has not yet been set
+		for(int c=0; c<NUM_MIDI_CC_TYPES; c++){
+			current_cc_values[i][c] = NO_NOTE;
+		}
+	}
+	//init the RPN 0 Array:
+	for(int i=0; i<MIDI_NUM_RPN_0; i++){
+		rpn_0_array[i] = MIDI_RPN_NULL;
+	}
+	//init the RPN 3D Array:
+	for(int i=0; i<MIDI_NUM_RPN_3D; i++){
+		rpn_3d_array[i] = MIDI_RPN_NULL;
+	}
+}
+
+bool MIDIController::note_was_added(void)
+{
+	if(new_note_added){
+		//reset to false whenever this is called to avoid getting stuck in a tune request loop
+		new_note_added = false;
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
+bool MIDIController::note_was_changed(void)
+{
+	if(new_note_changed){
+		//reset to false whenever this is called to avoid getting stuck in a tune request loop
+		new_note_changed = false;
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
+bool MIDIController::note_was_removed(void)
+{
+	if(new_note_removed){
+		//reset to false whenever this is called to avoid getting stuck in a tune request loop
+		new_note_removed = false;
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
+bool MIDIController::cc_was_changed(void)
+{
+	if(new_cc_message){
+		//reset to false whenever this is called to avoid getting stuck in a tune request loop
+		new_cc_message = false;
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
+bool MIDIController::program_mode_was_changed(void)
+{
+	if(new_program_mode){
+		//reset to false whenever this is called to avoid getting stuck in a tune request loop
+		new_program_mode = false;
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
 bool MIDIController::tune_request_was_received(void){
 	if(new_tune_request){
 		//reset to false whenever this is called to avoid getting stuck in a tune request loop
 		new_tune_request = false;
+		return true;
+	}
+	else{
+		return false;
+	}
+}
+
+bool MIDIController::system_reset_request_was_received(void)
+{
+	if(new_system_reset_request){
+		//reset to false whenever this is called to avoid getting stuck in a tune request loop
+		new_system_reset_request = false;
 		return true;
 	}
 	else{
@@ -122,8 +199,7 @@ void MIDIController::assign_MIDI_handlers(uint8_t type, uint8_t channel, uint8_t
 		handle_aftertouch_channel(channel, data_1);
 		break;
 	case usbMIDI.PitchBend:
-		uint16_t pitch_bend = (data_2<<7) + data_1 - 8192;
-		handle_pitch_bend(channel, pitch_bend);
+		handle_pitch_bend(channel, ((data_2<<7) + data_1 - 8192));
 		break;
 	case usbMIDI.TuneRequest:
 		handle_tune_request();
@@ -145,12 +221,14 @@ void MIDIController::handle_note_on(uint8_t channel, uint8_t note, uint8_t veloc
 {	
 	//TIM: Add some checks here for things like CC7 volume lowering and other options that can effect the note other than pitch bending
 	add_note(channel, note, velocity);
+	new_note_added = true;
 }
 
 void MIDIController::handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity)
 {
 	//TIM: If you want to take action on a note-off velocity number, do it before removing the note.
 	rm_note(channel, note);
+	new_note_removed = true;
 }
 
 void MIDIController::handle_pitch_bend(uint8_t channel, int16_t pitch)
@@ -164,6 +242,7 @@ void MIDIController::handle_pitch_bend(uint8_t channel, int16_t pitch)
 			current_notes[i].freq = calculate_note_frequency(channel, current_notes[i].note);
 		}
 	}
+	new_note_changed = true;
 	#ifdef MIDI_DEBUG_PITCH_BEND
 		Serial.print("Pitch Bend: ");
 		Serial.print(channel);
@@ -183,6 +262,7 @@ void MIDIController::handle_aftertouch_channel(uint8_t channel, uint8_t pressure
 			current_notes[i].velocity = pressure;
 		}
 	}
+	new_note_changed = true;
 	#ifdef MIDI_DEBUG_AFTERTOUCH
 		Serial.print("Channel Aftertouch: ");
 		Serial.print(channel);
@@ -199,6 +279,7 @@ void MIDIController::handle_aftertouch_poly(uint8_t channel, uint8_t note, uint8
 			current_notes[i].velocity = velocity;
 		}
 	}
+	new_note_changed = true;
 	#ifdef MIDI_DEBUG_AFTERTOUCH
 		Serial.print("Poly Aftertouch: ");
 		Serial.print(channel);
@@ -213,6 +294,7 @@ void MIDIController::handle_program_change(uint8_t channel, uint8_t program)
 {
 	//This just sets the channel's program number. It's up to whatever's using the controller to handle it.
 	current_program_modes[channel] = program;
+	new_program_mode = true;
 	#ifdef MIDI_DEBUG_SYSTEM
 		Serial.print("Program Change: ");
 		Serial.print(channel);
@@ -223,13 +305,36 @@ void MIDIController::handle_program_change(uint8_t channel, uint8_t program)
 
 void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uint8_t cc_value)
 {
-	
+	//this will update the current_cc_values array regardless of the note
+	current_cc_values[channel][cc_type] = cc_value;
+	new_cc_message = true;
+	#ifdef MIDI_DEBUG_CC
+		Serial.print("CC: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.print(cc_type);
+		Serial.print(":");
+		Serial.println(cc_value);
+	#endif
+	//now we do a switch to handle special cases that effect things like note values and pitch bending on the controller
+	switch(cc_type){
+	case MIDI_CC::bank_select_msb:
+		break;
+	default:
+		//do nothing
+		break;
+	}
+}
+
+void MIDIController::handle_rpn_change(uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t cc6_value, uint8_t cc38_value)
+{
+
 }
 
 void MIDIController::handle_tune_request()
 {
 	//this sets a flag that can be checked by whatever's using the controller to call a tune change
-	tune_request_was_received = true;
+	new_tune_request = true;
 	#ifdef MIDI_DEBUG_SYSTEM
 		Serial.print("Tune Request Received.");
 	#endif
@@ -237,46 +342,52 @@ void MIDIController::handle_tune_request()
 
 void MIDIController::handle_system_reset()
 {
-	//this will reset the teensy. If you're using another MCU, this won't work.
+	new_system_reset_request = true;
 	#ifdef MIDI_DEBUG_SYSTEM
 		Serial.print("System reset message received - restarting...");
-		//give time to read the message before the serial buffer gets cleared
-		delay(5000);
 	#endif
-	_softRestart();
 }
 
 void MIDIController::add_note(uint8_t channel, uint8_t note, uint8_t velocity){
-	uint8_t note_position = check_note(channel, note);
-	//if the note isn't already in the array, put it at the end of the array.
-	if(note_position == NOT_IN_ARRAY){
-		current_notes[num_current_notes].channel = channel;
-		current_notes[num_current_notes].note = note;
-		current_notes[num_current_notes].velocity = velocity;
-		current_notes[num_current_notes].freq = calculate_note_frequency(channel, note);
-		num_current_notes++;
-	} else {
-		//if it is in the array, put the note at the end and bend everything back down to where the note used to be.
-		for(int i=note_position; i<num_current_notes; i++){
-			current_notes[i] = current_notes[i+1];
+	//first verify that the note values make sense
+	if(num_current_notes < MAX_CONCURRENT_MIDI_NOTES && note < NUM_MIDI_NOTES){
+		int8_t note_position = check_note(channel, note);
+		//if the note isn't already in the array, put it at the end of the array.
+		if(note_position == NOT_IN_ARRAY){
+			num_current_notes++;
+			current_notes[num_current_notes-1].channel = channel;
+			current_notes[num_current_notes-1].note = note;
+			current_notes[num_current_notes-1].velocity = velocity;
+			current_notes[num_current_notes-1].freq = calculate_note_frequency(channel, note);
+		} else {
+			//if it is in the array, put the note at the end and bend everything back down to where the note used to be.
+			for(int i=note_position; i<num_current_notes; i++){
+				current_notes[i] = current_notes[i+1];
+			}
+			current_notes[num_current_notes-1].channel = channel;
+			current_notes[num_current_notes-1].note = note;
+			current_notes[num_current_notes-1].velocity = velocity;
+			current_notes[num_current_notes-1].freq = calculate_note_frequency(channel, note);
 		}
-		current_notes[num_current_notes-1].channel = channel;
-		current_notes[num_current_notes-1].note = note;
-		current_notes[num_current_notes-1].velocity = velocity;
-		current_notes[num_current_notes-1].freq = calculate_note_frequency(channel, note);
+		//if note debug is on, this will print the current note array every time a note is added or removed
+		print_current_notes();
+	} else {
+		Serial.println("Too Many Notes, New Note Ignored.");
 	}
-	//if note debug is on, this will print the current note array every time a note is added or removed
-	print_current_notes();
 }
 
 void MIDIController::rm_note(uint8_t channel, uint8_t note){
-	uint8_t note_position = check_note(channel, note);
+	int8_t note_position = check_note(channel, note);
 	//if the note is in the note array, remove it and bend down any other notes.
 	if(note_position != NOT_IN_ARRAY){
 		for(int i=note_position; i<num_current_notes; i++){
 			current_notes[i] = current_notes[i+1];
 		}
 		num_current_notes--;
+		//make sure it doesn't remove more notes than we have
+		if(num_current_notes < 0){
+			num_current_notes = 0;
+		}
 		//if note debug is on, this will print the current note array every time a note is added or removed
 		print_current_notes();
 	} else {
