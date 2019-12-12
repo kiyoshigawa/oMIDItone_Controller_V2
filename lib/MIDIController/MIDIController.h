@@ -43,8 +43,11 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 //uncomment this to get debug messages about MIDI program and system messages
 #define MIDI_DEBUG_SYSTEM
 
-//uncomment this to get debug messages about MIDI CC messages
+//uncomment this to get debug messages about MIDI CC messages from the default handlers
 #define MIDI_DEBUG_CC
+
+//uncomment this to get debug messages about RPN handling from the default handlers
+#define MIDI_DEBUG_RPN
 
 //uncomment this to get printouts of the current note array every time a note is added or removed
 #define MIDI_NOTE_DEBUG
@@ -74,6 +77,9 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 //This is the number of MIDI channels. Should always be 16, unless MIDI changed sometime in the last decade.
 #define NUM_MIDI_CHANNELS 16
+
+//this is the maximum value for a 14-bit MIDI message data chunk - used for validity checking:
+#define MIDI_MAX_2_BYTE_VALUE 16383
 
 //this is the most concurrent midi notes that the controler will keep track of at any given time:
 #define MAX_CONCURRENT_MIDI_NOTES 20
@@ -108,6 +114,27 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 //this is the default state for the local control variable. It's up to the user to decide what to do with this value:
 #define MIDI_DEFAULT_LOCAL_CONTROL_STATE true
+
+//this is used when tracking whether RPN or NRPN handling should be active.
+#define MIDI_NO_RPN_NRPN 0
+#define MIDI_RPN 1
+#define MIDI_NRPN 2
+#define MIDI_INCREMENT 96
+#define MIDI_DECREMENT 97
+
+//this is the null value for RPN - if RPN is set to this, it will ignore all data from registers CC6 and CC38
+#define MIDI_RPN_NULL 0x7F
+
+//this is a datatype of a function for handing MIDI CC messages that can be set 
+//by the uder of the class. I use it in an array, so each function will only 
+//handle one CC message type, and the only arguments are channel and value.
+typedef void (*cc_handler_pointer)(uint8_t channel, uint8_t cc_value);
+
+//these are for custom rpn and nrpm handling functions. since they all take the 
+//same number and type of arguments, I only made one new datatype
+//for relative functions, data_1 is increment or decrement, and data_2 is ammount
+//for absolute functions, data_1 is the CC6 value and data_2 is the CC38 value
+typedef void (*rpn_handler_pointer)(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t data_1, uint8_t data_2);
 
 //This is an array of MIDI notes and the frequency they correspond to. Turns out it is not needed.
 //const float midi_Hz_freqs[NUM_MIDI_NOTES] = {8.176, 8.662, 9.177, 9.723, 10.301, 10.913, 11.562, 12.25, 12.978, 13.75, 14.568, 15.434, 16.352, 17.324, 18.354, 19.445, 20.602, 21.827, 23.125, 24.5, 25.957, 27.5, 29.135, 30.868, 32.703, 34.648, 36.708, 38.891, 41.203, 43.654, 46.249, 48.999, 51.913, 55, 58.27, 61.735, 65.406, 69.296, 73.416, 77.782, 82.407, 87.307, 92.499, 97.999, 103.826, 110, 116.541, 123.471, 130.813, 138.591, 146.832, 155.563, 164.814, 174.614, 184.997, 195.998, 207.652, 220, 233.082, 246.942, 261.626, 277.183, 293.665, 311.127, 329.628, 349.228, 369.994, 391.995, 415.305, 440, 466.164, 493.883, 523.251, 554.365, 587.33, 622.254, 659.255, 698.456, 739.989, 783.991, 830.609, 880, 932.328, 987.767, 1046.502, 1108.731, 1174.659, 1244.508, 1318.51, 1396.913, 1479.978, 1567.982, 1661.219, 1760, 1864.655, 1975.533, 2093.005, 2217.461, 2349.318, 2489.016, 2637.02, 2793.826, 2959.955, 3135.963, 3322.438, 3520, 3729.31, 3951.066, 4186.009, 4434.922, 4698.636, 4978.032, 5274.041, 5587.652, 5919.911, 6271.927, 6644.875, 7040, 7458.62, 7902.133, 8372.018, 8869.844, 9397.273, 9956.063, 10548.08, 11175.3, 11839.82, 12543.85};
@@ -301,9 +328,6 @@ enum MIDI_RPN_3D{
 //using this to keep array sizes smaller
 #define MIDI_NUM_RPN_3D 7
 
-//this is the null value for RPN - if RPN is set to this, it will ignore all data from registers CC6 and CC38
-#define MIDI_RPN_NULL 0x7F
-
 //this is a struct for storing MIDI note info:
 //it will be kept up to date on every MIDIController::update() call with the currently playing notes.
 struct midi_note{
@@ -334,13 +358,37 @@ class MIDIController{
 		void update(void);
 
 		/*
-		This will assign user functions to be called when specific MIDI CC messages are received.
-		This will work for any MIDI CC message from 0-119, but not for the channel messages 120-127.
-		If using this for MIDI CC 7, 11, 39, or 43, the default volume/expression control will be disabled.
-		If using this for any one of MIDI CC 6, 38, 96, 97, 98, 99, 100, or 101, 
-		all RPN features will be disabled upon the assignment of any one of these CC values.
+		This will assign user functions to be called when specific MIDI CC 
+		messages are received. This will work for any MIDI CC message, but there 
+		are consequences... If using this for any one of MIDI CC 6, 38, 96, 97, 
+		98, 99, 100, or 101, all RPN and NRPN features will be disabled upon the
+		assignment of any one of these CC values. If using for MIDI CC 120-127, 
+		the functionality of the MIDI channel messages will break. This includes
+		all sound off, all notes off, local control, reset all controllers, 
+		omni, poly, and mono modes.
+		It is HIGHLY recommended that user functions only be used for the MIDI 
+		CC values not listed above to ensure compatibility with standard MIDI
+		features using this controller unless you know what you're breaking.
 		*/
-		void assign_midi_cc_handler(uint8_t cc_number, void(*fptr)(uint8_t channel, uint8_t cc_value));
+		void assign_midi_cc_handler(uint8_t cc_number, cc_handler_pointer fptr);
+
+		//This allows for handing of RPN messages by user functions instead of 
+		//by the MIDI standard specified actions. Overriding these will disable
+		//the default actions taken based on the MIDI specs. Do so your own risk
+		void assign_midi_rpn_absolute_handler(rpn_handler_pointer fptr);
+
+		//This allows for handing of RPN messages by user functions instead of 
+		//by the MIDI standard specified actions. Overriding these will disable
+		//the default actions taken based on the MIDI specs. Do so your own risk
+		void assign_midi_rpn_relative_handler(rpn_handler_pointer fptr);
+
+		//this allows for handing of NRPN messages by user functions. NRPNs are
+		//entirely user defined, so use these for whatever you want.
+		void assign_midi_nrpn_absolute_handler(rpn_handler_pointer fptr);
+
+		//this allows for handing of NRPN messages by user functions. NRPNs are
+		//entirely user defined, so use these for whatever you want.
+		void assign_midi_nrpn_relative_handler(rpn_handler_pointer fptr);
 
 		//this sets the receive channel for when omni mode is off. It accepts a MIDI channel value from 0-15.
 		void set_omni_off_receive_channel(uint8_t channel);
@@ -405,14 +453,16 @@ class MIDIController{
 		uint8_t current_cc_values[NUM_MIDI_CHANNELS][NUM_MIDI_CC_TYPES];
 
 		//this an array that tracks the MSB for RPN values where the RPN MSB (CC 101) is equal to 0
-		//the value can be set directly using CC 6 for MSB and CC38 for LSB, 
-		//or the values can be incremented/decremented using CC96 and CC97
-		uint8_t rpn_0_array[NUM_MIDI_CHANNELS][MIDI_NUM_RPN_0];
+		//note that the values stores are both msb and lsb together as a single integer.
+		//to get the msb separate from the lsb, you need to >> 7, and to get the lsb separate from
+		//the msb you need to bitmask with 0x7F
+		uint16_t rpn_0_values[NUM_MIDI_CHANNELS][MIDI_NUM_RPN_0];
 		
 		//this an array that tracks the MSB for RPN values where the RPN MSB (CC 101) is equal to 0x3D
-		//the value can be set directly using CC 6 for MSB and CC38 for LSB, 
-		//or the values can be incremented/decremented using CC96 and CC97
-		uint8_t rpn_3d_array[NUM_MIDI_CHANNELS][MIDI_NUM_RPN_3D];
+		//note that the values stores are both msb and lsb together as a single integer.
+		//to get the msb separate from the lsb, you need to >> 7, and to get the lsb separate from
+		//the msb you need to bitmask with 0x7F
+		uint16_t rpn_3d_values[NUM_MIDI_CHANNELS][MIDI_NUM_RPN_3D];
 	private:
 		//this will handle the hardware MIDI messages and usbMIDI messages 
 		void process_MIDI(void);
@@ -442,9 +492,49 @@ class MIDIController{
 		//this handles control change messages received by either hardware or usb MIDI
 		void handle_control_change(uint8_t channel, uint8_t cc_type, uint8_t cc_value);
 
-		//this handles CC6 and CC38 messages received by either hardware or usb MIDI
-		//the results will depend on the most recent RPN messages received on CC100 and CC101
-		void handle_rpn_change(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t cc6_value, uint8_t cc38_value);
+		//this handled rpm modes that receive explicit data set points (i.e. CC6 or CC38)
+		//if any of CC6, 38, 96, 97, 98, 99, 100, or 101 have custom handlers, it will not be called.
+		void handle_rpn_change_absolute(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t cc6_value, uint8_t cc38_value);
+
+		//this handled rpm modes that receive relative data set points (i.e. CC96 or CC97)
+		//if any of CC6, 38, 96, 97, 98, 99, 100, or 101 have custom handlers, it will not be called.
+		void handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t increment_or_decrement, uint8_t ammount);
+
+		//this handled nrpm modes that receive explicit data set points (i.e. CC6 or CC38)
+		//if any of CC6, 38, 96, 97, 98, 99, 100, or 101 have custom handlers, it will not be called.
+		void handle_nrpn_change_absolute(uint8_t channel, uint8_t nrpn_msb, uint8_t nrpn_lsb, uint8_t cc6_value, uint8_t cc38_value);
+
+		//this handled nrpm modes that receive relative data set points (i.e. CC96 or CC97)
+		//if any of CC6, 38, 96, 97, 98, 99, 100, or 101 have custom handlers, it will not be called.
+		void handle_nrpn_change_relative(uint8_t channel, uint8_t nrpn_msb, uint8_t nrpn_lsb, uint8_t increment_or_decrement, uint8_t ammount);
+
+		//this handles RPN pitch bend sensitivity changes
+		//function takes MSB and LSB as a single 14-bit value: new_value
+		void handle_rpn_pitch_bend_sensitivity(uint8_t channel, uint16_t new_value);
+
+		//this handles RPN fine tuning changes
+		//function takes MSB and LSB as a single 14-bit value: new_value
+		void handle_rpn_fine_tuning(uint8_t channel, uint16_t new_value);
+
+		//this handles RPN coarse tuning changes
+		//function takes MSB and LSB as a single 14-bit value: new_value
+		void handle_rpn_coarse_tuning(uint8_t channel, uint16_t new_value);
+
+		//this handles RPN tuning program change changes
+		//function takes MSB and LSB as a single 14-bit value: new_value
+		void handle_rpn_tuning_program_change(uint8_t channel, uint16_t new_value);
+
+		//this handles RPN tuning bank select changes
+		//function takes MSB and LSB as a single 14-bit value: new_value
+		void handle_rpn_tuning_bank_select(uint8_t channel, uint16_t new_value);
+
+		//this handles RPN modulation depth changes
+		//function takes MSB and LSB as a single 14-bit value: new_value
+		void handle_rpn_modulation_depth_range(uint8_t channel, uint16_t new_value);
+
+		//this handles RPN MPE configuration message changes
+		//function takes MSB and LSB as a single 14-bit value: new_value
+		void handle_rpn_MPE_configuration_message(uint8_t channel, uint16_t new_value);
 
 		//this handles tune request messages received by either hardware or usb MIDI
 		void handle_tune_request(void);
@@ -477,6 +567,12 @@ class MIDIController{
 
 		//this will set the max pitch bend offset, and recalculate the pitch bend for all current notes as well
 		void set_max_pitch_bend(uint8_t channel, uint8_t semitones, uint8_t cents);
+
+		//this is used to make sure when using the increment or decrement rpn functionality that the output 
+		//values are between 0 and MIDI_MAX_2_BYTE_VALUE. Returns a number within that range.
+		//if the value submitted is too big, it will return MIDI_MAX_2_BYTE_VALUE,
+		//if the value is negative, it will return 0.
+		uint16_t clean_2_byte_MIDI_value(int16_t value);
 
 		//this is a function to print the current_notes array with some formatting for debug pruposes
 		void print_current_notes(void);
@@ -538,6 +634,11 @@ class MIDIController{
 		//omni mode is disabled. It defaults to MIDI_DEFAULT_RECEIVE_CHANNEL and
 		//can be changed using the set_omni_off_receive_channel public function.
 		int omni_off_receive_channel;
+
+		//this tracks whether an RPN or NRPN message was most recently sent so
+		//that the CC handler function can call the appropriate handlers when
+		//CC6, CC38, CC96, and CC97 are received.
+		int last_rpn_nrpn_type;
 
 };
 
