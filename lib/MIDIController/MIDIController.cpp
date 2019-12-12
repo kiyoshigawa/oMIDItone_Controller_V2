@@ -29,8 +29,19 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 //init the hardware MIDI:
 MIDI_CREATE_INSTANCE(HARDWARE_MIDI_TYPE, HARDWARE_MIDI_INTERFACE, MIDI);
 
+//this an array of function pointers to the MIDI CC handler functions.
+//they can be overridden from the default values shown here by setting a new 
+//function pointer using the assign_midi_cc_handler() function.
+typedef void (*cc_handler_pointer)(uint8_t channel, uint8_t cc_value);
+cc_handler_pointer midi_cc_handler_function_array[NUM_MIDI_CC_TYPES];
+
 MIDIController::MIDIController(void)
 {
+	//init the pointers for the MIDI CC handlers to null on creation
+	for(int i=0; i<NUM_MIDI_CC_TYPES; i++){
+		midi_cc_handler_function_array[i] = NULL;
+	}
+	//put this into a function so that it can also be called from MIDI CC 121.
 	reset_to_default();
 }
 
@@ -40,6 +51,7 @@ void MIDIController::init(void)
 {
 	//init the hardware MIDI interface
 	MIDI.begin(MIDI_CHANNEL_OMNI);
+	//and init the USB MIDI interface
 	usbMIDI.begin();
 }
 
@@ -49,30 +61,21 @@ void MIDIController::update(void)
 	process_MIDI();
 }
 
-void MIDIController::reset_to_default(void)
+void MIDIController::assign_midi_cc_handler(uint8_t cc_number, cc_handler_pointer function_pointer)
 {
-	num_current_notes = 0;
-	new_tune_request = false;
-	//init things in arrays NUM_MIDI_CHANNELS long:
-	for(int i=0; i<NUM_MIDI_CHANNELS; i++){
-		current_channel_aftertouches[i] = NO_NOTE; //this doesn't mater, it's just a placeholder. It will only effect currently playing notes
-		current_pitch_bends[i] = 0;
-		current_program_modes[i] = 0; //0 is the default program mode per the MIDI spec
-		//init the CC array to a default of NO_NOTE for all CC to indicate that it has not yet been set
-		for(int c=0; c<NUM_MIDI_CC_TYPES; c++){
-			current_cc_values[i][c] = NO_NOTE;
-		}
-	}
-	//init the RPN 0 Array:
-	for(int i=0; i<MIDI_NUM_RPN_0; i++){
-		rpn_0_array[i] = MIDI_RPN_NULL;
-	}
-	//init the RPN 3D Array:
-	for(int i=0; i<MIDI_NUM_RPN_3D; i++){
-		rpn_3d_array[i] = MIDI_RPN_NULL;
-	}
+	midi_cc_handler_function_array[cc_number] = function_pointer;
 }
 
+void MIDIController:: set_omni_off_receive_channel(uint8_t channel)
+{
+	//validity check:
+	if(channel < NUM_MIDI_CHANNELS){
+		omni_off_receive_channel = channel;
+	} else {
+		//set to default on invalid input:
+		omni_off_receive_channel = MIDI_DEFAULT_RECEIVE_CHANNEL;
+	}
+}
 bool MIDIController::note_was_added(void)
 {
 	if(new_note_added){
@@ -156,6 +159,10 @@ bool MIDIController::system_reset_request_was_received(void)
 	}
 }
 
+bool MIDIController::is_local_control_enabled(void)
+{
+	return local_control_is_enabled;
+}
 /* ----- END PUBLIC FUNCTIONS ----- */
 /* ----- PRIVATE FUNCTIONS BELOW ----- */
 
@@ -179,6 +186,12 @@ void MIDIController::process_MIDI(void)
 
 void MIDIController::assign_MIDI_handlers(uint8_t type, uint8_t channel, uint8_t data_1, uint8_t data_2)
 {
+	//return without taking any action if the channel is wrong when omni mode is off
+	if(!omni_mode_is_enabled){
+		if(channel != omni_off_receive_channel){
+			return;
+		}
+	}
 	switch(type){
 	case usbMIDI.NoteOff:
 		handle_note_off(channel, data_1, data_2);
@@ -219,14 +232,12 @@ void MIDIController::assign_MIDI_handlers(uint8_t type, uint8_t channel, uint8_t
 
 void MIDIController::handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity)
 {	
-	//TIM: Add some checks here for things like CC7 volume lowering and other options that can effect the note other than pitch bending
 	add_note(channel, note, velocity);
 	new_note_added = true;
 }
 
 void MIDIController::handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity)
 {
-	//TIM: If you want to take action on a note-off velocity number, do it before removing the note.
 	rm_note(channel, note);
 	new_note_removed = true;
 }
@@ -305,28 +316,236 @@ void MIDIController::handle_program_change(uint8_t channel, uint8_t program)
 
 void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uint8_t cc_value)
 {
-	//this will update the current_cc_values array regardless of the note
+	//this will update the current_cc_values array to match the most recently received data byte
 	current_cc_values[channel][cc_type] = cc_value;
 	new_cc_message = true;
-	#ifdef MIDI_DEBUG_CC
-		Serial.print("CC: ");
-		Serial.print(channel);
-		Serial.print(":");
-		Serial.print(cc_type);
-		Serial.print(":");
-		Serial.println(cc_value);
-	#endif
-	//now we do a switch to handle special cases that effect things like note values and pitch bending on the controller
+	//now we will call the user-defined handler function if it has been defined.
+	//this switch will check the cases with defaults, specifically CC6, CC38, CC96-101, and CC120-127.
 	switch(cc_type){
-	case MIDI_CC::bank_select_msb:
+	//these cases are all related to RPN value manipulation, so if any of them 
+	//have handlers, we need to call those instead of handle_rpn_change
+	case MIDI_CC::rpn_data_entry_msb:
+	case MIDI_CC::rpn_data_entry_lsb:
+	case MIDI_CC::data_increment:
+	case MIDI_CC::data_decrement:
+	case MIDI_CC::rpn_lsb:
+	case MIDI_CC::rpn_msb:
+		//TIM: this is broken, you need to fix it so it will work correctly.
+		if(midi_cc_handler_function_array[cc_type] != NULL){
+			midi_cc_handler_function_array[cc_type](channel, cc_value);
+		} else {
+			handle_rpn_change(
+				channel, 
+				current_cc_values[channel][MIDI_CC::rpn_msb],
+				current_cc_values[channel][MIDI_CC::rpn_lsb],
+				current_cc_values[channel][MIDI_CC::rpn_data_entry_msb],
+				current_cc_values[channel][MIDI_CC::rpn_data_entry_lsb]);
+		}
+		#ifdef MIDI_DEBUG_CC
+			Serial.println("RPN Received...");
+		#endif
+		break;
+	//as far as this controller is concerned, sound off and all notes off work the same.
+	case MIDI_CC::all_sound_off:
+	case MIDI_CC::all_notes_off:
+		if(midi_cc_handler_function_array[cc_type] != NULL){
+			#ifdef MIDI_DEBUG_CC
+				Serial.print("CC: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(cc_type);
+				Serial.print(":");
+				Serial.print(cc_value);
+				Serial.println(" handled by user function.");
+			#endif
+			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			break;
+		}
+		//set the number of current notes to 0 immediately
+		num_current_notes = 0;
+		//notify the controller user that notes have ended so they can take action
+		new_note_removed = true;
+		#ifdef MIDI_DEBUG_CC
+			Serial.println("All notes/sound off received.");
+		#endif
+		break;
+	//this is essentially the same as a freshly init()ed controller.
+	case MIDI_CC::reset_all_controllers:
+		if(midi_cc_handler_function_array[cc_type] != NULL){
+			#ifdef MIDI_DEBUG_CC
+				Serial.print("CC: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(cc_type);
+				Serial.print(":");
+				Serial.print(cc_value);
+				Serial.println(" handled by user function.");
+			#endif
+			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			break;
+		}
+		//reset all values to defaults
+		reset_to_default();
+		//notify te controller user that things have changed so they can take action
+		new_note_removed = true;
+		new_program_mode = true;
+		new_cc_message = true;
+		#ifdef MIDI_DEBUG_CC
+			Serial.println("Controller reset to defaults.");
+		#endif
+		break;
+	//this one needs to be handled by the user of the controller, so we've put 
+	//in the is_local_control_enabled() function for people who want to use this
+	case MIDI_CC::local_control_on_off:
+		if(midi_cc_handler_function_array[cc_type] != NULL){
+			#ifdef MIDI_DEBUG_CC
+				Serial.print("CC: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(cc_type);
+				Serial.print(":");
+				Serial.print(cc_value);
+				Serial.println(" handled by user function.");
+			#endif
+			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			break;
+		}
+		if(cc_value == 0){
+			local_control_is_enabled = false;
+		} else if(cc_value == 127){
+			local_control_is_enabled = true;
+		}
+		//other values are undefined, do nothing except in these two cases.
+		#ifdef MIDI_DEBUG_CC
+			Serial.print("Local control ");
+			if(local_control_is_enabled){Serial.print("enabled");}
+			else{Serial.print("disabled");}
+			Serial.println(".");
+		#endif
+		break;
+	case MIDI_CC::omni_mode_off:
+		if(midi_cc_handler_function_array[cc_type] != NULL){
+			#ifdef MIDI_DEBUG_CC
+				Serial.print("CC: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(cc_type);
+				Serial.print(":");
+				Serial.print(cc_value);
+				Serial.println(" handled by user function.");
+			#endif
+			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			break;
+		}
+		omni_mode_is_enabled = false;
+		//set the number of current notes to 0 immediately
+		num_current_notes = 0;
+		//notify the controller user that notes have ended so they can take action
+		new_note_removed = true;
+		#ifdef MIDI_DEBUG_CC
+			Serial.print("Omni Mode off, listening on channel: ");
+			Serial.println(omni_off_receive_channel);
+		#endif
+		break;
+	case MIDI_CC::omni_mode_on:
+		if(midi_cc_handler_function_array[cc_type] != NULL){
+			#ifdef MIDI_DEBUG_CC
+				Serial.print("CC: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(cc_type);
+				Serial.print(":");
+				Serial.print(cc_value);
+				Serial.println(" handled by user function.");
+			#endif
+			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			break;
+		}
+		omni_mode_is_enabled = true;
+		//set the number of current notes to 0 immediately
+		num_current_notes = 0;
+		//notify the controller user that notes have ended so they can take action
+		new_note_removed = true;
+		#ifdef MIDI_DEBUG_CC
+			Serial.println("Omni Mode on.");
+		#endif
+		break;
+	case MIDI_CC::mono_mode_on:
+		if(midi_cc_handler_function_array[cc_type] != NULL){
+			#ifdef MIDI_DEBUG_CC
+				Serial.print("CC: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(cc_type);
+				Serial.print(":");
+				Serial.print(cc_value);
+				Serial.println(" handled by user function.");
+			#endif
+			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			break;
+		}
+		poly_mode_is_enabled = false;
+		num_mono_voices = cc_value;
+		//set the number of current notes to 0 immediately
+		num_current_notes = 0;
+		//notify the controller user that notes have ended so they can take action
+		new_note_removed = true;
+		#ifdef MIDI_DEBUG_CC
+			Serial.print("Mono Mode on with ");
+			Serial.print(cc_value);
+			Serial.println(" voices.");
+		#endif
+		break;
+	case MIDI_CC::poly_mode_on:
+		if(midi_cc_handler_function_array[cc_type] != NULL){
+			#ifdef MIDI_DEBUG_CC
+				Serial.print("CC: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(cc_type);
+				Serial.print(":");
+				Serial.print(cc_value);
+				Serial.println(" handled by user function.");
+			#endif
+			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			break;
+		}
+		poly_mode_is_enabled = true;
+		//set the number of current notes to 0 immediately
+		num_current_notes = 0;
+		//notify the controller user that notes have ended so they can take action
+		new_note_removed = true;
+		#ifdef MIDI_DEBUG_CC
+			Serial.println("Poly mode on.");
+		#endif
 		break;
 	default:
-		//do nothing
-		break;
+		if(midi_cc_handler_function_array[cc_type] != NULL){
+			#ifdef MIDI_DEBUG_CC
+				Serial.print("CC: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(cc_type);
+				Serial.print(":");
+				Serial.print(cc_value);
+				Serial.println(" handled by user function.");
+			#endif
+			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			break;
+		}
+		#ifdef MIDI_DEBUG_CC
+			Serial.print("CC: ");
+			Serial.print(channel);
+			Serial.print(":");
+			Serial.print(cc_type);
+			Serial.print(":");
+			Serial.print(cc_value);
+			Serial.println("not assigned, no action taken.");
+		#endif
 	}
 }
 
-void MIDIController::handle_rpn_change(uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t cc6_value, uint8_t cc38_value)
+void MIDIController::handle_rpn_change(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t cc6_value, uint8_t cc38_value)
 {
 
 }
@@ -348,9 +567,43 @@ void MIDIController::handle_system_reset()
 	#endif
 }
 
+void MIDIController::reset_to_default(void)
+{
+	num_current_notes = 0;
+	new_tune_request = false;
+	poly_mode_is_enabled = MIDI_DEFAULT_POLY_STATE;
+	omni_mode_is_enabled = MIDI_DEFAULT_OMNI_STATE;
+	num_mono_voices = MIDI_DEFAULT_MONO_VOICES;
+	omni_off_receive_channel = MIDI_DEFAULT_RECEIVE_CHANNEL;
+	local_control_is_enabled = MIDI_DEFAULT_LOCAL_CONTROL_STATE;
+	//init things in arrays NUM_MIDI_CHANNELS long:
+	for(int c=0; c<NUM_MIDI_CHANNELS; c++){
+		current_channel_aftertouches[c] = NO_NOTE; //this doesn't mater, it's just a placeholder. It will only effect currently playing notes
+		current_pitch_bends[c] = 0;
+		current_program_modes[c] = 0; //0 is the default program mode per the MIDI spec
+		//init the CC array to a default of NO_NOTE for all CC to indicate that it has not yet been set
+		for(int i=0; i<NUM_MIDI_CC_TYPES; i++){
+			current_cc_values[c][1] = NO_NOTE;
+		}
+		//init the RPN 0 Array:
+		for(int i=0; i<MIDI_NUM_RPN_0; i++){
+			rpn_0_array[c][i] = MIDI_RPN_NULL;
+		}
+		//init the RPN 3D Array:
+		for(int i=0; i<MIDI_NUM_RPN_3D; i++){
+			rpn_3d_array[c][i] = MIDI_RPN_NULL;
+		}
+	}
+}
+
 void MIDIController::add_note(uint8_t channel, uint8_t note, uint8_t velocity){
 	//first verify that the note values make sense
-	if(num_current_notes < MAX_CONCURRENT_MIDI_NOTES && note < NUM_MIDI_NOTES){
+	uint8_t max_notes = MAX_CONCURRENT_MIDI_NOTES;
+	if(!poly_mode_is_enabled && num_mono_voices != 0){
+		//set the max number of notes based on the mono mode settings
+		max_notes = num_mono_voices;
+	}
+	if(num_current_notes < max_notes && note < NUM_MIDI_NOTES){
 		int8_t note_position = check_note(channel, note);
 		//if the note isn't already in the array, put it at the end of the array.
 		if(note_position == NOT_IN_ARRAY){
@@ -372,7 +625,23 @@ void MIDIController::add_note(uint8_t channel, uint8_t note, uint8_t velocity){
 		//if note debug is on, this will print the current note array every time a note is added or removed
 		print_current_notes();
 	} else {
-		Serial.println("Too Many Notes, New Note Ignored.");
+		int8_t note_position = check_note(channel, note);
+		//if the note isn't already in the array, put it at the end of the array.
+		if(note_position == NOT_IN_ARRAY){
+			//we need to shift every note down and put the new note on the end in this case.
+			//the end result is that the oldest note is gone forever, and only the most current max_notes notes remain in the array.
+			for(int i=0; i<num_current_notes; i++){
+				current_notes[i] = current_notes[i+1];
+			}
+			current_notes[num_current_notes-1].channel = channel;
+			current_notes[num_current_notes-1].note = note;
+			current_notes[num_current_notes-1].velocity = velocity;
+			current_notes[num_current_notes-1].freq = calculate_note_frequency(channel, note);
+			//notify that a note was removed from the array so it can be stopped.
+			new_note_removed = true;
+		}
+		//if note debug is on, this will print the current note array every time a note is added or removed
+		print_current_notes();
 	}
 }
 

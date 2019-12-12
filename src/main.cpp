@@ -371,7 +371,6 @@ void update_lighting(void)
 //this iterates through the MIDIController's current note array and assign heads to play the notes
 void update_oMIDItones(void)
 {
-	
 	//check to see if a tune request was received. If so, call the init function for the heads
 	//this will take a while, so don't automate it into your MIDI files plsthx
 	if(mc.tune_request_was_received()){
@@ -412,6 +411,9 @@ void setup(void)
 
 	//initialize the MIDIController:
 	mc.init();
+
+	//assign MIDI CC handler functions as needed
+	//mc.assign_cc_handler(cc_number, function_name);
 
 	#ifdef OMIDITONE_DEBUG
 		Serial.println("Init Complete, awaiting MIDI input.");
