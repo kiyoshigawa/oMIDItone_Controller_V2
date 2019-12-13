@@ -431,3 +431,22 @@ void loop(void)
 	//this will update all lighting functions on a regular basis
 	update_lighting();
 }
+
+/* Old code that needs to eb reintegrated or replaced...
+
+
+
+//this function moves the head in question to the end of the head_order_array, and shuffles the remaining heads down into its place.
+void pending_head_order_to_end(uint8_t head_number){
+	//don't need to iterate to the last one, because if the head_number is in the last position already, we're good
+	for(int i=0; i<NUM_OMIDITONES-1; i++){
+		if(pending_head_order_array[i] == head_number){
+			//set the current position to the next head in line
+			pending_head_order_array[i] = pending_head_order_array[i+1];
+			//and move the head in question down the line until it's in the last place
+			pending_head_order_array[i+1] = head_number;
+		}
+	}
+}
+
+*/

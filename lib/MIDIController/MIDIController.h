@@ -92,7 +92,15 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 //this is the center value for pitch bending - if the pitch_bend vlaue is set to this, it will play the note without any pitch bending.
 //Teensy MIDI sends a number from -8192 to 8191, so I am using 0 as the center here. Typical MIDI center is 8192, adjust as needed.
-#define CENTER_PITCH_BEND 0
+#define MIDI_CENTER_PITCH_BEND 0
+
+//this is the center fine tuning value. The MIDI data is sent as a number from 0-16383, so I convert it to be an integer 
+//from -8192 to 8191 in the handle_rpn_fine_tuning() function for use in tuning changes.
+#define MIDI_CENTER_FINE_TUNING 8192
+
+//this is the center coarse tuning value. It is only one byte from 0-127, so I convert it to be an
+//integer from -64 to 63 in the handle_rpn_coarse_tuning() function for use in tuning changes.
+#define MIDI_CENTER_COARSE_TUNING 64
 
 //this is how much I multiplied the cent frequency ratios by to make things work with integer math
 #define CENT_FREQUENCY_RATIO_MULTIPLIER 1000000
@@ -116,14 +124,19 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define MIDI_DEFAULT_LOCAL_CONTROL_STATE true
 
 //this is used when tracking whether RPN or NRPN handling should be active.
-#define MIDI_NO_RPN_NRPN 0
 #define MIDI_RPN 1
 #define MIDI_NRPN 2
-#define MIDI_INCREMENT 96
-#define MIDI_DECREMENT 97
 
 //this is the null value for RPN - if RPN is set to this, it will ignore all data from registers CC6 and CC38
 #define MIDI_RPN_NULL 0x7F
+
+//these are for determining if a MIDI CC RPN value is valid per the MIDI spec
+#define MIDI_RPN_0_MSB 0
+#define MIDI_RPN_3D_MSB 0x3D
+
+//these are the MIDI CC message numbers that correspond to increment and decrements of RPN values
+#define MIDI_INCREMENT 96
+#define MIDI_DECREMENT 97
 
 //this is a datatype of a function for handing MIDI CC messages that can be set 
 //by the uder of the class. I use it in an array, so each function will only 
@@ -132,7 +145,7 @@ typedef void (*cc_handler_pointer)(uint8_t channel, uint8_t cc_value);
 
 //these are for custom rpn and nrpm handling functions. since they all take the 
 //same number and type of arguments, I only made one new datatype
-//for relative functions, data_1 is increment or decrement, and data_2 is ammount
+//for relative functions, data_1 is increment or decrement, and data_2 is amount
 //for absolute functions, data_1 is the CC6 value and data_2 is the CC38 value
 typedef void (*rpn_handler_pointer)(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t data_1, uint8_t data_2);
 
@@ -463,6 +476,11 @@ class MIDIController{
 		//to get the msb separate from the lsb, you need to >> 7, and to get the lsb separate from
 		//the msb you need to bitmask with 0x7F
 		uint16_t rpn_3d_values[NUM_MIDI_CHANNELS][MIDI_NUM_RPN_3D];
+
+		//this stores the per-channel max pitch bend offset allowed by the controller
+		//the value is stored in cents offset off the original note number,
+		//i.e. an offset of negative 235 is 2 semitones and 35 cents lower than the original note.
+		uint16_t max_pitch_bend_offsets[NUM_MIDI_CHANNELS];
 	private:
 		//this will handle the hardware MIDI messages and usbMIDI messages 
 		void process_MIDI(void);
@@ -498,7 +516,7 @@ class MIDIController{
 
 		//this handled rpm modes that receive relative data set points (i.e. CC96 or CC97)
 		//if any of CC6, 38, 96, 97, 98, 99, 100, or 101 have custom handlers, it will not be called.
-		void handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t increment_or_decrement, uint8_t ammount);
+		void handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t increment_or_decrement, uint8_t amount);
 
 		//this handled nrpm modes that receive explicit data set points (i.e. CC6 or CC38)
 		//if any of CC6, 38, 96, 97, 98, 99, 100, or 101 have custom handlers, it will not be called.
@@ -506,7 +524,7 @@ class MIDIController{
 
 		//this handled nrpm modes that receive relative data set points (i.e. CC96 or CC97)
 		//if any of CC6, 38, 96, 97, 98, 99, 100, or 101 have custom handlers, it will not be called.
-		void handle_nrpn_change_relative(uint8_t channel, uint8_t nrpn_msb, uint8_t nrpn_lsb, uint8_t increment_or_decrement, uint8_t ammount);
+		void handle_nrpn_change_relative(uint8_t channel, uint8_t nrpn_msb, uint8_t nrpn_lsb, uint8_t increment_or_decrement, uint8_t amount);
 
 		//this handles RPN pitch bend sensitivity changes
 		//function takes MSB and LSB as a single 14-bit value: new_value
@@ -573,6 +591,14 @@ class MIDIController{
 		//if the value submitted is too big, it will return MIDI_MAX_2_BYTE_VALUE,
 		//if the value is negative, it will return 0.
 		uint16_t clean_2_byte_MIDI_value(int16_t value);
+
+		//this function will set the max pitch bend offset value in cents,
+		//when given an offset value in semitones and an offset value in cents.
+		//the full range of pitch bending will be from -max_pitch_bend_offset to
+		//max_pitch_bend_offset in cents.
+		//This is typically called by the RPN function handler, so it will stop
+		//working automatically if any RPN CC messages are using overridden handlers.
+		void set_max_pitch_bend(uint8_t channel, int8_t semitones, int8_t cents);
 
 		//this is a function to print the current_notes array with some formatting for debug pruposes
 		void print_current_notes(void);

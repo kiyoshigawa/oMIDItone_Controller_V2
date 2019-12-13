@@ -285,9 +285,9 @@ void MIDIController::handle_pitch_bend(uint8_t channel, int16_t pitch)
 		if(current_notes[i].channel == channel){
 			//the pitch bend will be calculated automatically by this function based on the updated current_pitch_bends[channel] value
 			current_notes[i].freq = calculate_note_frequency(channel, current_notes[i].note);
+			new_note_changed = true;
 		}
 	}
-	new_note_changed = true;
 	#ifdef MIDI_DEBUG_PITCH_BEND
 		Serial.print("Pitch Bend: ");
 		Serial.print(channel);
@@ -377,7 +377,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 			midi_cc_handler_function_array[MIDI_CC::nrpn_lsb] != NULL ||
 			midi_cc_handler_function_array[MIDI_CC::nrpn_msb] != NULL ||
 			midi_cc_handler_function_array[MIDI_CC::rpn_lsb] != NULL ||
-			midi_cc_handler_function_array[MIDI_CC::rpn_msb] != NULL	){
+			midi_cc_handler_function_array[MIDI_CC::rpn_msb] != NULL ){
 			//if a handler exists for the cc_type, call the handler
 			if(midi_cc_handler_function_array[cc_type] != NULL){
 				midi_cc_handler_function_array[cc_type](channel, cc_value);
@@ -387,23 +387,11 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 			//last_rpn_nrpn_type variable, then break from the switch. 
 			if(cc_type == MIDI_CC::nrpn_lsb || cc_type == MIDI_CC::nrpn_msb){
 				last_rpn_nrpn_type = MIDI_NRPN;
-				#ifdef MIDI_DEBUG_CC
-					Serial.print("NRPN Mode Change: ");
-					Serial.print(cc_type);
-					Serial.print(":");
-					Serial.println(cc_value);
-				#endif
 				// don't call a handler until one of the data_entry or data_(in||dec)crement CCs is received
 				break;
 			}
 			if(cc_type == MIDI_CC::rpn_lsb || cc_type == MIDI_CC::rpn_msb){
 				last_rpn_nrpn_type = MIDI_RPN;
-				#ifdef MIDI_DEBUG_CC
-					Serial.print("RPN Mode Change: ");
-					Serial.print(cc_type);
-					Serial.print(":");
-					Serial.println(cc_value);
-				#endif
 				// don't call a handler until one of the data_entry or data_(in||dec)crement CCs is received
 				break;
 			}
@@ -421,9 +409,6 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 						current_cc_values[channel][MIDI_CC::rpn_lsb],
 						current_cc_values[channel][MIDI_CC::rpn_data_entry_msb],
 						current_cc_values[channel][MIDI_CC::rpn_data_entry_lsb]);
-						#ifdef MIDI_DEBUG_CC
-							Serial.println("Calling RPN Default Handler...");
-						#endif
 						break;
 				} else if (cc_type == MIDI_CC::data_increment || cc_type == MIDI_CC::data_decrement){
 					handle_rpn_change_relative(
@@ -432,9 +417,6 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 						current_cc_values[channel][MIDI_CC::rpn_lsb],
 						cc_type,
 						cc_value);
-						#ifdef MIDI_DEBUG_CC
-							Serial.println("Calling RPN Default Handler...");
-						#endif
 						break;
 				}
 			} else if(last_rpn_nrpn_type == MIDI_NRPN){
@@ -662,7 +644,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 			Serial.print(cc_type);
 			Serial.print(":");
 			Serial.print(cc_value);
-			Serial.println("not assigned, no action taken.");
+			Serial.println(" not assigned, no action taken.");
 		#endif
 	}
 }
@@ -671,14 +653,27 @@ void MIDIController::handle_rpn_change_absolute(uint8_t channel, uint8_t rpn_msb
 {
 	//if there's a user-defined handler, call that and return without taking any default actions:
 	if(midi_rpn_absolute_handler_function_pointer != NULL){
+		#ifdef MIDI_DEBUG_RPN
+			Serial.print("RPN: ");
+			Serial.print(channel);
+			Serial.print(":");
+			Serial.print(rpn_msb, HEX);
+			Serial.print(":");
+			Serial.print(rpn_lsb, HEX);
+			Serial.println("handled by user function.");
+		#endif
 		midi_rpn_absolute_handler_function_pointer(channel, rpn_msb, rpn_lsb, cc6_value, cc38_value);
-	} else{
+		return;
+	} else {
 		//now we handle depending on the rpn_msb and rpn_lsb:
 		//kill the function immediately without taking any actions if the 
 		//rpn_msb or rpn_lsb are set to MIDI_RPN_NULL
 		if(rpn_msb == MIDI_RPN_NULL || rpn_lsb == MIDI_RPN_NULL){
+			#ifdef MIDI_DEBUG_RPN
+				Serial.println("RPN is set to null (0x7F), no action taken.");
+			#endif
 			return;
-		} else if(rpn_msb == 0){
+		} else if(rpn_msb == MIDI_RPN_0_MSB){
 			//update the rpn_0_array with the new values:
 			if(rpn_lsb < MIDI_NUM_RPN_0){
 				rpn_0_values[channel][rpn_lsb] = (cc6_value << 7) + cc38_value;
@@ -688,121 +683,197 @@ void MIDIController::handle_rpn_change_absolute(uint8_t channel, uint8_t rpn_msb
 			case MIDI_RPN_0::pitch_bend_sensitivity:
 				//adjust max pitch bend based on current cc6 and cc38 values:
 				handle_rpn_pitch_bend_sensitivity(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::channel_fine_tuning:
 				//adjust channel fine tuning based on current cc6 and cc38 values:
 				handle_rpn_fine_tuning(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::channel_coarse_tuning:
 				//adjust channel coarse tuning on current cc6 and cc38 values:
 				handle_rpn_coarse_tuning(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::tuning_program_change:
 				//adjust tuning program change based on current cc6 and cc38 values:
 				handle_rpn_tuning_program_change(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::tuning_bank_select:
 				//adjust tuning bank select based on current cc6 and cc38 values:
 				handle_rpn_tuning_bank_select(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::modulation_depth_range:
 				//adjust modulation depth range based on current cc6 and cc38 values:
 				handle_rpn_modulation_depth_range(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::MPE_configuration_message:
 				//adjust MPE Configuration based on current cc6 and cc38 values:
 				handle_rpn_MPE_configuration_message(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			default:
+				#ifdef MIDI_DEBUG_RPN
+					Serial.print("RPN: ");
+					Serial.print(channel);
+					Serial.print(":");
+					Serial.print(rpn_msb, HEX);
+					Serial.print(":");
+					Serial.print(rpn_lsb, HEX);
+					Serial.println("not recognized, no action taken.");
+				#endif
 				//anything other than these options is invalid and the function should return.
 				return;
 			}
-		} else if(rpn_msb == 0x3D){
+		} else if(rpn_msb == MIDI_RPN_3D_MSB){
 			//update the rpn_3d_array with the new values:
 			if(rpn_lsb < MIDI_NUM_RPN_3D){
+				#ifdef MIDI_DEBUG_RPN
+					Serial.print("RPN: ");
+					Serial.print(channel);
+					Serial.print(":");
+					Serial.print(rpn_msb, HEX);
+					Serial.print(":");
+					Serial.print(rpn_lsb, HEX);
+					Serial.print(" set to");
+					Serial.print((cc6_value<<7)+cc38_value);
+					Serial.println(".");
+				#endif
 				rpn_3d_values[channel][rpn_lsb] = (cc6_value << 7) + cc38_value;
+				return;
 			}
+		} else {
+			//no else actions on this one, there are only two valid rpn_msb values in the MIDI specs.
+			//just print debug messages if enabled
+			#ifdef MIDI_DEBUG_RPN
+				Serial.print("RPN: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(rpn_msb, HEX);
+				Serial.print(":");
+				Serial.print(rpn_lsb, HEX);
+				Serial.println(" not recognized, no action taken.");
+			#endif
 		}
-		//no else on this one, there are only two valid rpn_msb values in the MIDI specs.
 	}
-
 }
 
-void MIDIController::handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t increment_or_decrement, uint8_t ammount)
+void MIDIController::handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t increment_or_decrement, uint8_t amount)
 {
 	//if there's a user-defined handler, call that and return without taking any default actions:
 	if(midi_rpn_relative_handler_function_pointer != NULL){
-		midi_rpn_relative_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, increment_or_decrement, ammount);
+		#ifdef MIDI_DEBUG_RPN
+			Serial.print("RPN: ");
+			Serial.print(channel);
+			Serial.print(":0x");
+			Serial.print(rpn_msb, HEX);
+			Serial.print(":0x");
+			Serial.print(rpn_lsb, HEX);
+			Serial.println("handled by user function.");
+		#endif
+		midi_rpn_relative_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, increment_or_decrement, amount);
+		return;
 	} else {
 		//now we handle depending on the rpn_msb and rpn_lsb:
 		//kill the function immediately without taking any actions if the 
 		//rpn_msb or rpn_lsb are set to MIDI_RPN_NULL
 		if(rpn_msb == MIDI_RPN_NULL || rpn_lsb == MIDI_RPN_NULL){
+			#ifdef MIDI_DEBUG_RPN
+				Serial.println("RPN is set to null (0x7F), no action taken.");
+			#endif
 			return;
-		} else if(rpn_msb == 0){
-			uint16_t adjusted_ammount;
+		} else if(rpn_msb == MIDI_RPN_0_MSB){
+			uint16_t adjusted_amount;
 			//update the rpn_0_array with the new values:
 			if(rpn_lsb < MIDI_NUM_RPN_0){
 				if(increment_or_decrement == MIDI_INCREMENT){
-					adjusted_ammount = clean_2_byte_MIDI_value((int16_t)(rpn_0_values[channel][rpn_lsb]+ammount));
+					adjusted_amount = clean_2_byte_MIDI_value((int16_t)(rpn_0_values[channel][rpn_lsb]+amount));
 				} else if(increment_or_decrement == MIDI_DECREMENT){
-					adjusted_ammount = clean_2_byte_MIDI_value((int16_t)(rpn_0_values[channel][rpn_lsb]-ammount));
+					adjusted_amount = clean_2_byte_MIDI_value((int16_t)(rpn_0_values[channel][rpn_lsb]-amount));
 				} else {
 					//anything other than these two options is invalid and the function should return.
 					return;
 				}
-				rpn_0_values[channel][rpn_lsb] = adjusted_ammount;
+				rpn_0_values[channel][rpn_lsb] = adjusted_amount;
 			}
 			//default actions for when rpn_msb is 0 per the MIDI standards
 			switch(rpn_lsb){
 			case MIDI_RPN_0::pitch_bend_sensitivity:
 				//adjust max pitch bend based on current cc6 and cc38 values:
 				handle_rpn_pitch_bend_sensitivity(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::channel_fine_tuning:
 				//adjust channel fine tuning based on current cc6 and cc38 values:
 				handle_rpn_fine_tuning(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::channel_coarse_tuning:
 				//adjust channel coarse tuning on current cc6 and cc38 values:
 				handle_rpn_coarse_tuning(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::tuning_program_change:
 				//adjust tuning program change based on current cc6 and cc38 values:
 				handle_rpn_tuning_program_change(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::tuning_bank_select:
 				//adjust tuning bank select based on current cc6 and cc38 values:
 				handle_rpn_tuning_bank_select(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::modulation_depth_range:
 				//adjust modulation depth range based on current cc6 and cc38 values:
 				handle_rpn_modulation_depth_range(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			case MIDI_RPN_0::MPE_configuration_message:
 				//adjust MPE Configuration based on current cc6 and cc38 values:
 				handle_rpn_MPE_configuration_message(channel, rpn_0_values[channel][rpn_lsb]);
-				break;
+				return;
 			default:
+				#ifdef MIDI_DEBUG_RPN
+					Serial.print("RPN: ");
+					Serial.print(channel);
+					Serial.print(":");
+					Serial.print(rpn_msb, HEX);
+					Serial.print(":");
+					Serial.print(rpn_lsb, HEX);
+					Serial.println(" not recognized, no action taken.");
+				#endif
 				//anything other than these options is invalid and the function should return.
 				return;
 			}
-		} else if(rpn_msb == 0x3D){
-			uint16_t adjusted_ammount;
+		} else if(rpn_msb == MIDI_RPN_3D_MSB){
+			uint16_t adjusted_amount;
 			//update the rpn_3d_array with the new values:
 			if(rpn_lsb < MIDI_NUM_RPN_3D){
 				if(increment_or_decrement == MIDI_INCREMENT){
-					adjusted_ammount = clean_2_byte_MIDI_value((int16_t)(rpn_3d_values[channel][rpn_lsb]+ammount));
+					adjusted_amount = clean_2_byte_MIDI_value((int16_t)(rpn_3d_values[channel][rpn_lsb]+amount));
 				} else if(increment_or_decrement == MIDI_DECREMENT){
-					adjusted_ammount = clean_2_byte_MIDI_value((int16_t)(rpn_3d_values[channel][rpn_lsb]-ammount));
+					adjusted_amount = clean_2_byte_MIDI_value((int16_t)(rpn_3d_values[channel][rpn_lsb]-amount));
 				} else {
 					//anything other than these two options is invalid and the function should return.
 					return;
 				}
-				rpn_3d_values[channel][rpn_lsb] = adjusted_ammount;
+				#ifdef MIDI_DEBUG_RPN
+					Serial.print("RPN: ");
+					Serial.print(channel);
+					Serial.print(":");
+					Serial.print(rpn_msb, HEX);
+					Serial.print(":");
+					Serial.print(rpn_lsb, HEX);
+					Serial.print(" set to");
+					Serial.print(adjusted_amount);
+					Serial.println(".");
+				#endif
+				rpn_3d_values[channel][rpn_lsb] = adjusted_amount;
+				return;
 			}			
+		} else {
+			//no else actions on this one, there are only two valid rpn_msb values in the MIDI specs.
+			//just print debug messages if enabled
+			#ifdef MIDI_DEBUG_RPN
+				Serial.print("RPN: ");
+				Serial.print(channel);
+				Serial.print(":");
+				Serial.print(rpn_msb, HEX);
+				Serial.print(":");
+				Serial.print(rpn_lsb, HEX);
+				Serial.println(" not recognized, no action taken.");
+			#endif
 		}
-		//no else on this one, there are only two valid rpn_msb values in the MIDI specs.
 	}
 }
 
@@ -814,48 +885,113 @@ void MIDIController::handle_nrpn_change_absolute(uint8_t channel, uint8_t nrpn_m
 	}
 }
 
-void MIDIController::handle_nrpn_change_relative(uint8_t channel, uint8_t nrpn_msb, uint8_t nrpn_lsb, uint8_t increment_or_decrement, uint8_t ammount)
+void MIDIController::handle_nrpn_change_relative(uint8_t channel, uint8_t nrpn_msb, uint8_t nrpn_lsb, uint8_t increment_or_decrement, uint8_t amount)
 {
 	//NRPNs are all user-defined, so this will only do something if a user has made a handler for it:
 	if(midi_nrpn_relative_handler_function_pointer != NULL){
-		midi_nrpn_relative_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, increment_or_decrement, ammount);
+		midi_nrpn_relative_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, increment_or_decrement, amount);
 	}
 
 }
 
 void MIDIController::handle_rpn_pitch_bend_sensitivity(uint8_t channel, uint16_t new_value)
 {
-	//TIM: make this work
+	//isolate the most significant 7 bits
+	uint8_t semitones = new_value >> 7;
+	//isolate the least significant 7 bits
+	uint8_t cents = new_value & 0x7F;
+	//sanitize inputs for use based on controller default max settings
+	if(semitones > MAX_PITCH_BEND_SEMITONES){
+		semitones = MAX_PITCH_BEND_SEMITONES;
+	}
+	if(cents > MAX_PITCH_BEND_CENTS){
+		cents = MAX_PITCH_BEND_CENTS;
+	}
+	//set the controller's pitch bend 
+	max_pitch_bend_offsets[channel] = semitones*100 + cents;
+	//finally update any notes currently on the channel to be mapped to the new setup:
+	for(int n=0; n<num_current_notes; n++){
+		if(current_notes[n].channel = channel){
+			current_notes[n].freq = calculate_note_frequency(channel, current_notes[n].note);
+			new_note_changed = true;
+		}
+	}
+	#ifdef MIDI_DEBUG_RPN
+		Serial.print("Max Pitch Bend: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.print(semitones);
+		Serial.print(":");
+		Serial.println(cents);
+	#endif
 }
 
 void MIDIController::handle_rpn_fine_tuning(uint8_t channel, uint16_t new_value)
 {
+	int16_t adjusted_value = new_value-MIDI_CENTER_FINE_TUNING;
 	//TIM: make this work
+	#ifdef MIDI_DEBUG_RPN
+		Serial.print("Fine Tuning: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.println(adjusted_value);
+	#endif
 }
 
 void MIDIController::handle_rpn_coarse_tuning(uint8_t channel, uint16_t new_value)
 {
+	int8_t adjusted_value = (new_value>>7)-MIDI_CENTER_COARSE_TUNING;
 	//TIM: make this work
+	#ifdef MIDI_DEBUG_RPN
+		Serial.print("Coarse Tuning: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.println(adjusted_value);
+	#endif
 }
 
 void MIDIController::handle_rpn_tuning_program_change(uint8_t channel, uint16_t new_value)
 {
 	//TIM: make this work
+	#ifdef MIDI_DEBUG_RPN
+		Serial.print("Tuning Program Change: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.println(new_value);
+	#endif
 }
 
 void MIDIController::handle_rpn_tuning_bank_select(uint8_t channel, uint16_t new_value)
 {
 	//TIM: make this work
+	#ifdef MIDI_DEBUG_RPN
+		Serial.print("Tuning Bank Select: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.println(new_value);
+	#endif
 }
 
 void MIDIController::handle_rpn_modulation_depth_range(uint8_t channel, uint16_t new_value)
 {
 	//TIM: make this work
+	#ifdef MIDI_DEBUG_RPN
+		Serial.print("Modulation Depth Range: ");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.println(new_value);
+	#endif
 }
 
 void MIDIController::handle_rpn_MPE_configuration_message(uint8_t channel, uint16_t new_value)
 {
 	//TIM: make this work
+	#ifdef MIDI_DEBUG_RPN
+		Serial.print("MPE Configuration Message");
+		Serial.print(channel);
+		Serial.print(":");
+		Serial.println(new_value);
+	#endif
 }
 
 void MIDIController::handle_tune_request()
@@ -884,12 +1020,13 @@ void MIDIController::reset_to_default(void)
 	num_mono_voices = MIDI_DEFAULT_MONO_VOICES;
 	omni_off_receive_channel = MIDI_DEFAULT_RECEIVE_CHANNEL;
 	local_control_is_enabled = MIDI_DEFAULT_LOCAL_CONTROL_STATE;
-	last_rpn_nrpn_type = MIDI_NO_RPN_NRPN;
+	last_rpn_nrpn_type = MIDI_RPN_NULL;
 	//init things in arrays NUM_MIDI_CHANNELS long:
 	for(int c=0; c<NUM_MIDI_CHANNELS; c++){
 		current_channel_aftertouches[c] = NO_NOTE; //this doesn't mater, it's just a placeholder. It will only effect currently playing notes
 		current_pitch_bends[c] = 0;
 		current_program_modes[c] = 0; //0 is the default program mode per the MIDI spec
+		max_pitch_bend_offsets[c] = DEFAULT_MIDI_PITCH_BEND_SEMITONES*100 + DEFAULT_MIDI_PITCH_BEND_CENTS;
 		//init the CC array to a default of NO_NOTE for all CC to indicate that it has not yet been set
 		for(int i=0; i<NUM_MIDI_CC_TYPES; i++){
 			current_cc_values[c][1] = NO_NOTE;
@@ -993,16 +1130,31 @@ int8_t MIDIController::check_note(uint8_t channel, uint8_t note)
 
 uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 {
-	if(current_pitch_bends[channel] == 0){
+	if(current_pitch_bends[channel] == MIDI_CENTER_PITCH_BEND){
 		return midi_freqs[note];
-	}
-	else{
-		//TIM: Make pitch bending work here:
-		//For now, just returning unbent note values, because I want something to play
-		return midi_freqs[note];
+	} else {
+		//this takes the pitch_bend and maps it to the corresponding number of cents
+		int32_t pitch_bend_offset = map(current_pitch_bends[channel], -8192, 8192, -max_pitch_bend_offsets[channel], max_pitch_bend_offsets[channel]);
+		//figure out how manu semitones away the pitch_bend_offset is:
+		//the +50/-50 is to make it round correctly by offsetting halfway to the next integer and letting c truncate in the right direction for me
+		int32_t num_semitones_bent;
+		if(pitch_bend_offset < 0){
+			num_semitones_bent = (pitch_bend_offset-50)/100;
+		} else {
+			num_semitones_bent = (pitch_bend_offset+50)/100;
+		}
+		//this calculates how many cents past the nearest note frequency we need to bend
+		int32_t leftover_cents = pitch_bend_offset - (num_semitones_bent*100);
+		//this calls out the nearest note that we will use for the cent offset so that it's within range of the cent_frequency_ratios table
+		uint8_t adjusted_note = note + num_semitones_bent;
+
+		//the inflated_ratio is the frequency times the frequency adjustment ratio 2^(cents/1200) times 1,000,000.
+		//this is multiplied by 1,000,000 so we can use integer math instead of floating point math to make things speedier
+		uint64_t inflated_ratio = (uint64_t)midi_freqs[adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
+		//and we need to divide by 1,000,000 to cancel out the inflation above to get the actual frequency we desire.
+		return inflated_ratio/CENT_FREQUENCY_RATIO_MULTIPLIER;
 	}
 }
-
 
 uint16_t MIDIController::clean_2_byte_MIDI_value(int16_t value)
 {
@@ -1014,6 +1166,24 @@ uint16_t MIDIController::clean_2_byte_MIDI_value(int16_t value)
 	} else {
 		return value;
 	}
+}
+
+void MIDIController::set_max_pitch_bend(uint8_t channel, int8_t semitones, int8_t cents)
+{
+	//do some error checking to make sure that this is vaid
+	if(semitones > MAX_PITCH_BEND_SEMITONES){
+		semitones = MAX_PITCH_BEND_SEMITONES;
+	} else if(semitones < 0){
+		semitones = 0;
+	}
+	if(cents > MAX_PITCH_BEND_CENTS){
+		cents = MAX_PITCH_BEND_CENTS;
+	} else if(cents < 0){
+		cents = 0;
+	}
+	//this is the max offset from the center in cents.
+	//Pitch bend can go from note-max_offset to note+max_offset.
+	max_pitch_bend_offsets[channel] = semitones*100 + cents;
 }
 
 void MIDIController::print_current_notes(void){
@@ -1052,82 +1222,5 @@ void MIDIController::print_current_notes(void){
 /*
 
 //Below are functions taken out of the oMIDItone class that need to be reintegrated with the controller class:
-
-uint32_t oMIDItone::pitch_adjusted_frequency(uint8_t note, int16_t pitch_bend){
-	//First the trivial case of CENTER_PITCH_BEND:
-	if(pitch_bend == CENTER_PITCH_BEND){
-		return midi_freqs[note];
-	} else {
-		//this takes the pitch_bend and maps it to the corresponding number of cents
-		int32_t pitch_bend_offset = map(pitch_bend, -8192, 8192, -max_pitch_bend_offset, max_pitch_bend_offset);
-		//figure out how manu semitones away the pitch_bend_offset is:
-		//the +50/-50 is to make it round correctly by offsetting halfway to the next integer and letting c truncate in the right direction for me
-		int32_t num_semitones_bent;
-		if(pitch_bend_offset < 0){
-			num_semitones_bent = (pitch_bend_offset-50)/100;
-		} else {
-			num_semitones_bent = (pitch_bend_offset+50)/100;
-		}
-		//this calculates how many cents past the nearest note frequency we need to bend
-		int32_t leftover_cents = pitch_bend_offset - (num_semitones_bent*100);
-		//this calls out the nearest note that we will use for the cent offset so that it's within range of the cent_frequency_ratios table
-		uint8_t adjusted_note = note + num_semitones_bent;
-
-		//the inflated_ratio is the frequency times the frequency adjustment ratio 2^(cents/1200) times 1,000,000.
-		//this is multiplied by 1,000,000 so we can use integer math instead of floating point math to make things speedier
-		uint64_t inflated_ratio = (uint64_t)midi_freqs[adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
-		//and we need to divide by 1,000,000 to cancel out the inflation above to get the actual frequency we desire.
-		uint32_t adjusted_frequency = inflated_ratio/CENT_FREQUENCY_RATIO_MULTIPLIER;
-
-		return adjusted_frequency;
-	}
-}
-
-void oMIDItone::set_pitch_bend(int16_t pitch_bend_value, uint8_t pitch_bend_channel){
-		current_oMIDItone_pitch_bend[pitch_bend_channel] = pitch_bend_value;
-		//update the note if the pitch chift is on the same channel as the currently_playing_note:
-		if(pitch_bend_channel == current_channel){
-			current_desired_freq = pitch_adjusted_freq(current_note, current_oMIDItone_pitch_bend[current_channel]);
-			//set the averaging function to the new frequency in anticipation of the change:
-			for(int i=0; i<NUM_FREQ_READINGS; i++){
-				recent_freqs[i] = current_desired_freq;
-			}
-			//set the current_resistance to a value that was previously measured as close to the desired note's frequency.
-			current_resistance = freq_to_resistance(current_desired_freq);
-		}
-		update();
-}
-
-
-void oMIDItone::set_max_pitch_bend(uint8_t semitones, uint8_t cents){
-	//do some error checking to make sure that this is vaid
-	if(semitones > MAX_PITCH_BEND_SEMITONES){
-		semitones = MAX_PITCH_BEND_SEMITONES;
-	} else if(semitones <= 0){
-		semitones = 1;
-	}
-	if(cents > MAX_PITCH_BEND_CENTS){
-		cents = MAX_PITCH_BEND_CENTS;
-	} else if(cents <= 0){
-		cents = 1;
-	}
-	//this is the max offset from the center in cents.
-	//Pitch bend can go from note-max_offset to note+max_offset.
-	max_pitch_bend_offset = semitones*100 + cents;
-}
-
-
-//this function moves the head in question to the end of the head_order_array, and shuffles the remaining heads down into its place.
-void pending_head_order_to_end(uint8_t head_number){
-	//don't need to iterate to the last one, because if the head_number is in the last position already, we're good
-	for(int i=0; i<NUM_OMIDITONES-1; i++){
-		if(pending_head_order_array[i] == head_number){
-			//set the current position to the next head in line
-			pending_head_order_array[i] = pending_head_order_array[i+1];
-			//and move the head in question down the line until it's in the last place
-			pending_head_order_array[i+1] = head_number;
-		}
-	}
-}
 
 */
