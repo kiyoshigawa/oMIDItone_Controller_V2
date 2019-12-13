@@ -73,7 +73,7 @@ To summarize:
 
 //this is the most trigger events any animation can have running at a time
 //this will save a bit of memory if you reduce it, but not as much as the above two.
-#define MAX_TRIGGER_EVENTS 20
+#define MAX_TRIGGER_EVENTS 10
 
 
 //this is the background mask for the bits that set a lighting mode background.

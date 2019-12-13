@@ -470,7 +470,8 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 		//notify the controller user that notes have ended so they can take action
 		new_note_removed = true;
 		#ifdef MIDI_DEBUG_CC
-			Serial.println("All notes/sound off received.");
+			Serial.print("All notes/sound off received on channel: ");
+			Serial.println(channel);
 		#endif
 		break;
 	//this is essentially the same as a freshly init()ed controller.
@@ -676,7 +677,7 @@ void MIDIController::handle_rpn_change_absolute(uint8_t channel, uint8_t rpn_msb
 		} else if(rpn_msb == MIDI_RPN_0_MSB){
 			//update the rpn_0_array with the new values:
 			if(rpn_lsb < MIDI_NUM_RPN_0){
-				rpn_0_values[channel][rpn_lsb] = (cc6_value << 7) + cc38_value;
+				rpn_0_values[channel][rpn_lsb] = clean_2_byte_MIDI_value((cc6_value << 7) + cc38_value);
 			}
 			//default actions for when rpn_msb is 0 per the MIDI standards
 			switch(rpn_lsb){
@@ -735,7 +736,7 @@ void MIDIController::handle_rpn_change_absolute(uint8_t channel, uint8_t rpn_msb
 					Serial.print((cc6_value<<7)+cc38_value);
 					Serial.println(".");
 				#endif
-				rpn_3d_values[channel][rpn_lsb] = (cc6_value << 7) + cc38_value;
+				rpn_3d_values[channel][rpn_lsb] = clean_2_byte_MIDI_value((cc6_value << 7) + cc38_value);
 				return;
 			}
 		} else {
@@ -897,9 +898,9 @@ void MIDIController::handle_nrpn_change_relative(uint8_t channel, uint8_t nrpn_m
 void MIDIController::handle_rpn_pitch_bend_sensitivity(uint8_t channel, uint16_t new_value)
 {
 	//isolate the most significant 7 bits
-	uint8_t semitones = clean_1_byte_MIDI_value((int16_t)(new_value >> 7));
+	uint8_t semitones = (new_value >> 7);
 	//isolate the least significant 7 bits
-	uint8_t cents = clean_1_byte_MIDI_value((int16_t)(new_value & 0x7F));
+	uint8_t cents = new_value & 0x7F;
 	//sanitize inputs for use based on controller default max settings
 	if(semitones > MAX_PITCH_BEND_SEMITONES){
 		semitones = MAX_PITCH_BEND_SEMITONES;
@@ -911,7 +912,7 @@ void MIDIController::handle_rpn_pitch_bend_sensitivity(uint8_t channel, uint16_t
 	max_pitch_bend_offsets[channel] = semitones*100 + cents;
 	//finally update any notes currently on the channel to be mapped to the new setup:
 	for(int n=0; n<num_current_notes; n++){
-		if(current_notes[n].channel = channel){
+		if(current_notes[n].channel == channel){
 			current_notes[n].freq = calculate_note_frequency(channel, current_notes[n].note);
 			new_note_changed = true;
 		}
@@ -928,26 +929,65 @@ void MIDIController::handle_rpn_pitch_bend_sensitivity(uint8_t channel, uint16_t
 
 void MIDIController::handle_rpn_fine_tuning(uint8_t channel, uint16_t new_value)
 {
-	int16_t adjusted_value = new_value-MIDI_CENTER_FINE_TUNING;
-	//TIM: make this work
-	#ifdef MIDI_DEBUG_RPN
-		Serial.print("Fine Tuning: ");
-		Serial.print(channel);
-		Serial.print(":");
-		Serial.println(adjusted_value);
-	#endif
+	int16_t adjusted_value = new_value-MIDI_OFFSET_FINE_TUNING;
+	//we will need to calculate new frequencies based on the adjusted_value.
+	//this value ranges from -8192 to 8191, and correspeonds to a frequency
+	//offset of -99 to +99 cents.
+	fine_tuning_offsets[channel] = map(adjusted_value, -MIDI_OFFSET_FINE_TUNING, MIDI_OFFSET_FINE_TUNING-1, -MAX_PITCH_BEND_CENTS, MAX_PITCH_BEND_CENTS);
+	//in the simplest case where the offsets are 0, we can just use the 
+	//A440_midi_freqs[] array to fill in the default values without spending
+	//processing power on calculations.
+	if(adjusted_value == MIDI_CENTER_FINE_TUNING && coarse_tuning_offsets[channel] == MIDI_CENTER_COARSE_TUNING){
+		for(int n=0; n<NUM_MIDI_NOTES; n++){
+			midi_freqs[n] = A440_midi_freqs[n];
+			//midi_freqs[channel][n] = A440_midi_freqs[n];
+		}
+		#ifdef MIDI_DEBUG_RPN
+			Serial.print("Fine tuning reset to A=440Hz: ");
+			Serial.println(channel);
+		#endif
+		return;
+	} else {
+		int16_t total_tuning_offset_in_cents = coarse_tuning_offsets[channel]*100 + fine_tuning_offsets[channel];
+		recalculate_midi_freqs(channel, total_tuning_offset_in_cents);
+		#ifdef MIDI_DEBUG_RPN
+			Serial.print("Fine Tuning: ");
+			Serial.print(channel);
+			Serial.print(":");
+			Serial.println(adjusted_value);
+		#endif
+	}
 }
 
 void MIDIController::handle_rpn_coarse_tuning(uint8_t channel, uint16_t new_value)
 {
-	int8_t adjusted_value = (new_value>>7)-MIDI_CENTER_COARSE_TUNING;
-	//TIM: make this work
-	#ifdef MIDI_DEBUG_RPN
-		Serial.print("Coarse Tuning: ");
-		Serial.print(channel);
-		Serial.print(":");
-		Serial.println(adjusted_value);
-	#endif
+	//we will need to calculate new frequencies based on the adjusted_value.
+	//this value ranges from -64 to 63, and correspeonds to a frequency
+	//offset of -64 to +63 semitones.
+	coarse_tuning_offsets[channel] = (new_value>>7)-MIDI_OFFSET_COARSE_TUNING;
+	//in the simplest case where the offsets are 0, we can just use the 
+	//A440_midi_freqs[] array to fill in the default values without spending
+	//processing power on calculations.
+	if(coarse_tuning_offsets[channel] == MIDI_CENTER_FINE_TUNING && fine_tuning_offsets[channel] == MIDI_CENTER_FINE_TUNING){
+		for(int n=0; n<NUM_MIDI_NOTES; n++){
+			midi_freqs[n] = A440_midi_freqs[n];
+			//midi_freqs[channel][n] = A440_midi_freqs[n];
+		}
+		#ifdef MIDI_DEBUG_RPN
+			Serial.print("Coarse tuning reset to A=440Hz: ");
+			Serial.println(channel);
+		#endif
+		return;
+	} else {
+		int16_t total_tuning_offset_in_cents = coarse_tuning_offsets[channel]*100 + fine_tuning_offsets[channel];
+		recalculate_midi_freqs(channel, total_tuning_offset_in_cents);
+		#ifdef MIDI_DEBUG_RPN
+			Serial.print("Coarse Tuning: ");
+			Serial.print(channel);
+			Serial.print(":");
+			Serial.println(coarse_tuning_offsets[channel]);
+		#endif
+	}
 }
 
 void MIDIController::handle_rpn_tuning_program_change(uint8_t channel, uint16_t new_value)
@@ -1027,17 +1067,24 @@ void MIDIController::reset_to_default(void)
 		current_pitch_bends[c] = 0;
 		current_program_modes[c] = 0; //0 is the default program mode per the MIDI spec
 		max_pitch_bend_offsets[c] = DEFAULT_MIDI_PITCH_BEND_SEMITONES*100 + DEFAULT_MIDI_PITCH_BEND_CENTS;
+		fine_tuning_offsets[c] = MIDI_CENTER_FINE_TUNING;
+		coarse_tuning_offsets[c] = MIDI_CENTER_COARSE_TUNING;
 		//init the CC array to a default of NO_NOTE for all CC to indicate that it has not yet been set
 		for(int i=0; i<NUM_MIDI_CC_TYPES; i++){
 			current_cc_values[c][1] = NO_NOTE;
 		}
 		//init the RPN 0 Array:
 		for(int i=0; i<MIDI_NUM_RPN_0; i++){
-			rpn_0_values[c][i] = MIDI_RPN_NULL;
+			rpn_0_values[c][i] = 0; //0 is the default per MIDI specs
 		}
 		//init the RPN 3D Array:
 		for(int i=0; i<MIDI_NUM_RPN_3D; i++){
-			rpn_3d_values[c][i] = MIDI_RPN_NULL;
+			rpn_3d_values[c][i] = 0; //0 is the default per MIDI specs
+		}
+		//init the midi_freqs array
+		for(int i=0; i<NUM_MIDI_NOTES; i++){
+			midi_freqs[i] = A440_midi_freqs[i];
+			//midi_freqs[c][i] = A440_midi_freqs[i];
 		}
 	}
 }
@@ -1132,6 +1179,7 @@ uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 {
 	if(current_pitch_bends[channel] == MIDI_CENTER_PITCH_BEND){
 		return midi_freqs[note];
+		//return midi_freqs[channel][note];
 	} else {
 		//this takes the pitch_bend and maps it to the corresponding number of cents
 		int32_t pitch_bend_offset = map(current_pitch_bends[channel], -8192, 8192, -max_pitch_bend_offsets[channel], max_pitch_bend_offsets[channel]);
@@ -1151,8 +1199,33 @@ uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 		//the inflated_ratio is the frequency times the frequency adjustment ratio 2^(cents/1200) times 1,000,000.
 		//this is multiplied by 1,000,000 so we can use integer math instead of floating point math to make things speedier
 		uint64_t inflated_ratio = (uint64_t)midi_freqs[adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
+		//uint64_t inflated_ratio = (uint64_t)midi_freqs[channel][adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
 		//and we need to divide by 1,000,000 to cancel out the inflation above to get the actual frequency we desire.
 		return inflated_ratio/CENT_FREQUENCY_RATIO_MULTIPLIER;
+	}
+}
+
+void MIDIController::recalculate_midi_freqs(uint8_t channel, int16_t offset){
+	//this function takes an offset in cents from the note A=440Hz and then
+	//recalculates all the midi_freqs for the channel based on the offset
+	//being the new value for the note A.
+	
+	//this can take a long time if your Teensy doesn't have an MPU.
+
+	//First we need to calculate a frequency ratio based on the offset
+	//that we can multiply 440Hz by to get the new value for note A.
+	double frequency_ratio = pow(2, offset/1200);
+	double adjusted_A_freq_Hz = MIDI_NOTE_A_HZ*frequency_ratio;
+	//now that we have a new base frequency for A, we need to iterate through 
+	//all the midi notes from 0-127 and recalculate their frequencies.
+	//Midi note frequencies are calculatyed based on f=440*2^(n-69)/12
+	//in our case, we replace 440 with the adjusted_A_freq_Hz variable
+	for(int n=0; n<NUM_MIDI_NOTES; n++){
+		double converted_note_freq_Hz = adjusted_A_freq_Hz*pow(2, (n-69)/12);
+		//finally we convert from the actual frequency in Hz to the inverted
+		//frequency in us used by the rest of the code base and assign the value
+		midi_freqs[n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
+		//midi_freqs[channel][n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
 	}
 }
 
