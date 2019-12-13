@@ -78,6 +78,9 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 //This is the number of MIDI channels. Should always be 16, unless MIDI changed sometime in the last decade.
 #define NUM_MIDI_CHANNELS 16
 
+//this is the maximum value for an 8-bit MIDI message data chunk - used for validity checking:
+#define MIDI_MAX_1_BYTE_VALUE 127
+
 //this is the maximum value for a 14-bit MIDI message data chunk - used for validity checking:
 #define MIDI_MAX_2_BYTE_VALUE 16383
 
@@ -586,11 +589,17 @@ class MIDIController{
 		//this will set the max pitch bend offset, and recalculate the pitch bend for all current notes as well
 		void set_max_pitch_bend(uint8_t channel, uint8_t semitones, uint8_t cents);
 
-		//this is used to make sure when using the increment or decrement rpn functionality that the output 
-		//values are between 0 and MIDI_MAX_2_BYTE_VALUE. Returns a number within that range.
+		//this is used to make sure 14-bit MIDI values made from multiple messages 
+		//are between 0 and MIDI_MAX_2_BYTE_VALUE. Returns a number within that range.
 		//if the value submitted is too big, it will return MIDI_MAX_2_BYTE_VALUE,
 		//if the value is negative, it will return 0.
-		uint16_t clean_2_byte_MIDI_value(int16_t value);
+		uint16_t clean_2_byte_MIDI_value(int32_t value);
+
+		//this is used to make sure 7-bit MIDI values are between 0 and 
+		//MIDI_MAX_1_BYTE_VALUE. Returns a number within that range.
+		//if the value submitted is too big, it will return MIDI_MAX_1_BYTE_VALUE,
+		//if the value is negative, it will return 0.
+		uint8_t clean_1_byte_MIDI_value(int16_t value);
 
 		//this function will set the max pitch bend offset value in cents,
 		//when given an offset value in semitones and an offset value in cents.
@@ -667,25 +676,4 @@ class MIDIController{
 		int last_rpn_nrpn_type;
 
 };
-
 #endif
-
-/*
-
-//old stuff from the oMIDItone class that needs to be reintegrated into the new MIDIController class:
-
-//this will set the pitch bend value. This will apply to any notes played on the oMIDItone.
-void set_pitch_bend(int16_t pitch_bend_value, uint8_t pitch_bend_channel);
-
-//this sets the max pitch bend for the oMIDItone, used when calculating all pitch bends:
-//pitch will bend to a max of semitones + cents above or below the currently_playing_note frequency based on currently_playing_pitch_bend
-void set_max_pitch_bend(uint8_t semitones, uint8_t cents);
-
-//this will cancel the current pitch correction testing if anything disruptive happens during the testing to avoid incorrect corrections
-void cancel_pitch_correction();
-
-//This adjusts a frequency to a pitch-bent value from the base note.
-//note will vary as a proportion of pitch_bend from -8192 to +8192 up to max_pitch_bend_offset cents cents max away from the note frequency.
-uint32_t pitch_adjusted_frequency(uint8_t note, int16_t pitch_bend);
-
-*/

@@ -331,6 +331,10 @@ oMIDItone oms[NUM_OMIDITONES] = {
 		&om6_animation),
 };
 
+//TIM:
+//need to make all the MIDI CC handler functions for oMIDItone specific tasks,
+//such as lighting functions and animations.
+
 //This tracks the current head so the iteration isn't always in the same place.
 int head_offset = 0;
 
@@ -355,6 +359,28 @@ void pending_head_order_to_end(uint8_t head_number)
 	}
 }
 
+//this iterates through the MIDIController's current note array and assign heads to play the notes
+void update_oMIDItones(void)
+{
+	//check to see if a tune request was received. If so, call the init function for the heads
+	//this will take a while, so don't automate it into your MIDI files plsthx
+	if(mc.tune_request_was_received()){
+		for(int i=0; i<NUM_OMIDITONES; i++){
+			oms[i].init();
+		}
+	}
+
+	//check to see if a system reset request was received. This will reset the entire teensy,
+	if(mc.system_reset_request_was_received()){
+		_softRestart();
+	}
+
+	//Now we need to handle notes messages:
+	//TIM: figure out a sane way to assign notes to heads
+	//keep in mind notes can be added, removed, or changed
+	//and different actions will be needed for each of these options.
+}
+
 //this function callc the lc.update() function whenever lighting is enabled, and marks the head tunings as invalid after
 void update_lighting(void)
 {
@@ -364,18 +390,6 @@ void update_lighting(void)
 			for(int h=0; h<NUM_OMIDITONES; h++){
 				oms[h].cancel_pitch_correction();
 			}
-		}
-	}
-}
-
-//this iterates through the MIDIController's current note array and assign heads to play the notes
-void update_oMIDItones(void)
-{
-	//check to see if a tune request was received. If so, call the init function for the heads
-	//this will take a while, so don't automate it into your MIDI files plsthx
-	if(mc.tune_request_was_received()){
-		for(int i=0; i<NUM_OMIDITONES; i++){
-			oms[i].init();
 		}
 	}
 }
@@ -432,7 +446,7 @@ void loop(void)
 	update_lighting();
 }
 
-/* Old code that needs to eb reintegrated or replaced...
+/* Old code that needs to be reintegrated or replaced...
 
 
 

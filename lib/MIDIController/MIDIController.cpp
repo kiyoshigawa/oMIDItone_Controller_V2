@@ -783,9 +783,9 @@ void MIDIController::handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb
 			//update the rpn_0_array with the new values:
 			if(rpn_lsb < MIDI_NUM_RPN_0){
 				if(increment_or_decrement == MIDI_INCREMENT){
-					adjusted_amount = clean_2_byte_MIDI_value((int16_t)(rpn_0_values[channel][rpn_lsb]+amount));
+					adjusted_amount = clean_2_byte_MIDI_value((int32_t)(rpn_0_values[channel][rpn_lsb]+amount));
 				} else if(increment_or_decrement == MIDI_DECREMENT){
-					adjusted_amount = clean_2_byte_MIDI_value((int16_t)(rpn_0_values[channel][rpn_lsb]-amount));
+					adjusted_amount = clean_2_byte_MIDI_value((int32_t)(rpn_0_values[channel][rpn_lsb]-amount));
 				} else {
 					//anything other than these two options is invalid and the function should return.
 					return;
@@ -840,9 +840,9 @@ void MIDIController::handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb
 			//update the rpn_3d_array with the new values:
 			if(rpn_lsb < MIDI_NUM_RPN_3D){
 				if(increment_or_decrement == MIDI_INCREMENT){
-					adjusted_amount = clean_2_byte_MIDI_value((int16_t)(rpn_3d_values[channel][rpn_lsb]+amount));
+					adjusted_amount = clean_2_byte_MIDI_value((int32_t)(rpn_3d_values[channel][rpn_lsb]+amount));
 				} else if(increment_or_decrement == MIDI_DECREMENT){
-					adjusted_amount = clean_2_byte_MIDI_value((int16_t)(rpn_3d_values[channel][rpn_lsb]-amount));
+					adjusted_amount = clean_2_byte_MIDI_value((int32_t)(rpn_3d_values[channel][rpn_lsb]-amount));
 				} else {
 					//anything other than these two options is invalid and the function should return.
 					return;
@@ -897,9 +897,9 @@ void MIDIController::handle_nrpn_change_relative(uint8_t channel, uint8_t nrpn_m
 void MIDIController::handle_rpn_pitch_bend_sensitivity(uint8_t channel, uint16_t new_value)
 {
 	//isolate the most significant 7 bits
-	uint8_t semitones = new_value >> 7;
+	uint8_t semitones = clean_1_byte_MIDI_value((int16_t)(new_value >> 7));
 	//isolate the least significant 7 bits
-	uint8_t cents = new_value & 0x7F;
+	uint8_t cents = clean_1_byte_MIDI_value((int16_t)(new_value & 0x7F));
 	//sanitize inputs for use based on controller default max settings
 	if(semitones > MAX_PITCH_BEND_SEMITONES){
 		semitones = MAX_PITCH_BEND_SEMITONES;
@@ -1156,13 +1156,25 @@ uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 	}
 }
 
-uint16_t MIDIController::clean_2_byte_MIDI_value(int16_t value)
+uint16_t MIDIController::clean_2_byte_MIDI_value(int32_t value)
 {
 	//if the value is negative, return 0:
 	if(value < 0){
 		return 0;
 	} else if(value > MIDI_MAX_2_BYTE_VALUE){
 		return MIDI_MAX_2_BYTE_VALUE;
+	} else {
+		return value;
+	}
+}
+
+uint8_t MIDIController::clean_1_byte_MIDI_value(int16_t value)
+{
+	//if the value is negative, return 0:
+	if(value < 0){
+		return 0;
+	} else if(value > MIDI_MAX_1_BYTE_VALUE){
+		return MIDI_MAX_1_BYTE_VALUE;
 	} else {
 		return value;
 	}
@@ -1219,8 +1231,3 @@ void MIDIController::print_current_notes(void){
 }
 
 /* ----- END PRIVATE FUNCTIONS ----- */
-/*
-
-//Below are functions taken out of the oMIDItone class that need to be reintegrated with the controller class:
-
-*/
