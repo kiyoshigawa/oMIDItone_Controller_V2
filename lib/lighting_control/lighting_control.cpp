@@ -207,8 +207,9 @@ void Animation::update()
 	} //timing check if statement
 }
 
-void Animation::trigger_event(uint16_t trigger_type)
+void Animation::trigger_event(uint8_t trigger_type)
 {
+	trigger_type = validate_lc_trigger(trigger_type);
 	//we'll need some local variables for making the trigger event that can be used in the switch statements:
 	TriggerEvent new_event;
 	uint32_t adjusted_color;
@@ -344,8 +345,8 @@ void Animation::trigger_event(uint16_t trigger_type)
 
 void Animation::change_lighting_mode(uint16_t new_lighting_mode)
 {
-	bg_mode = new_lighting_mode & LC_BG_MASK;
-	fg_mode = new_lighting_mode & LC_FG_MASK;
+	bg_mode = validate_lc_bg(new_lighting_mode & LC_BG_MASK);
+	fg_mode = validate_lc_fg(new_lighting_mode & LC_FG_MASK);
 	init();
 }
 
@@ -388,6 +389,62 @@ uint16_t Animation::current_bg_mode()
 uint16_t Animation::current_fg_mode()
 {
 	return fg_mode;
+}
+
+//this checks to see if a cc_value corresponds to a valid lc_bg enum value:
+//returns value if valid, sets to lc_bg::no_bg if invalid
+//make sure to update if any new lighting animations are added
+uint8_t Animation::validate_lc_bg(uint8_t value){
+	if(
+		value == lc_bg::no_bg ||
+		value == lc_bg::solid ||
+		value == lc_bg::slow_fade ||
+		value == lc_bg::rainbow_fixed ||
+		value == lc_bg::rainbow_slow_rotate ){
+		return value;
+	} else {
+		return lc_bg::no_bg;
+	}
+}
+
+//this checks to see if a cc_value corresponds to a valid lc_fg enum value:
+//returns value if valid, sets to none lc_fg:no_fg if invalid
+//make sure to update if any new lighting animations are added
+uint16_t Animation::validate_lc_fg(uint16_t value){
+	if(
+		value == lc_fg::no_fg ||
+		value == lc_fg::marquee_solid_fixed ||
+		value == lc_fg::marquee_solid ||
+		value == lc_fg::marquee_slow_fade_fixed ||
+		value == lc_fg::marquee_slow_fade ||
+		value == lc_fg::vu_meter ){
+		return value;
+	} else {
+		return lc_fg::no_fg;
+	}
+}
+
+//this checks to see if a cc_value corresponds to a valid lc_trigger enum value:
+//returns value if valid, sets to lc_trigger:no_trigger if invalid
+//make sure to update if any new lighting animations are added
+uint8_t Animation::validate_lc_trigger(uint8_t value){
+	if(
+		value == lc_trigger::bg ||
+		value == lc_trigger::fg ||
+		value == lc_trigger::color_pulse ||
+		value == lc_trigger::color_pulse_slow_fade ||
+		value == lc_trigger::color_pulse_rainbow ||
+		value == lc_trigger::color_shot ||
+		value == lc_trigger::color_shot_slow_fade ||
+		value == lc_trigger::color_shot_rainbow ||
+		value == lc_trigger::flash ||
+		value == lc_trigger::flash_slow_fade ||
+		value == lc_trigger::flash_rainbow ||
+		value == lc_trigger::no_trigger ){
+		return value;
+	} else {
+		return lc_trigger::no_trigger;
+	}
 }
 
 /* ----- END PUBLIC FUNCTIONS ----- */

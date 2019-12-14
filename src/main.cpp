@@ -48,7 +48,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 //these next several #defines are default lighting info for the heads:
 #define DEFAULT_BG_MODE lc_bg::rainbow_slow_rotate
-#define DEFAULT_FG_MODE lc_fg::none
+#define DEFAULT_FG_MODE lc_fg::no_fg
 #define DEFAULT_TRIGGER_MODE lc_trigger::color_pulse
 
 #define DEFAULT_OM1_BG_RAINBOW 16
@@ -344,61 +344,6 @@ uint8_t validate_rainbow_number(uint8_t value)
 	}
 }
 
-//this checks to see if a cc_value corresponds to a valid lc_bg enum value:
-//returns value if valid, sets to DEFAULT_BG_MODE if invalid
-//make sure to update if any new lighting animations are added
-uint8_t validate_lc_bg(uint8_t value){
-	if(
-		value == lc_bg::no_bg ||
-		value == lc_bg::solid ||
-		value == lc_bg::slow_fade ||
-		value == lc_bg::rainbow_fixed ||
-		value == lc_bg::rainbow_slow_rotate ){
-		return value;
-	} else {
-		return DEFAULT_BG_MODE;
-	}
-}
-
-//this checks to see if a cc_value corresponds to a valid lc_fg enum value:
-//returns value if valid, sets to DEFAULT_FG_MODE if invalid
-//make sure to update if any new lighting animations are added
-uint16_t validate_lc_fg(uint16_t value){
-	if(
-		value == lc_fg::none ||
-		value == lc_fg::marquee_solid_fixed ||
-		value == lc_fg::marquee_solid ||
-		value == lc_fg::marquee_slow_fade_fixed ||
-		value == lc_fg::marquee_slow_fade ||
-		value == lc_fg::vu_meter ){
-		return value;
-	} else {
-		return DEFAULT_FG_MODE;
-	}
-}
-
-//this checks to see if a cc_value corresponds to a valid lc_trigger enum value:
-//returns value if valid, sets to DEFAULT_TRIGGER_MODE if invalid
-//make sure to update if any new lighting animations are added
-uint8_t validate_lc_trigger(uint16_t value){
-	if(
-		value == lc_trigger::bg ||
-		value == lc_trigger::fg ||
-		value == lc_trigger::color_pulse ||
-		value == lc_trigger::color_pulse_slow_fade ||
-		value == lc_trigger::color_pulse_rainbow ||
-		value == lc_trigger::color_shot ||
-		value == lc_trigger::color_shot_slow_fade ||
-		value == lc_trigger::color_shot_rainbow ||
-		value == lc_trigger::flash ||
-		value == lc_trigger::flash_slow_fade ||
-		value == lc_trigger::flash_rainbow ){
-		return value;
-	} else {
-		return DEFAULT_TRIGGER_MODE;
-	}
-}
-
 //the next 55 functions are the CC handlers for lighting effects, servo 
 //positions, pitch correction, note triggering, etc. that are called 
 //automatically by the MIDIController when received during an update.
@@ -491,28 +436,28 @@ void handle_cc_27_om6_bg_rainbow(uint8_t channel, uint8_t cc_value)
 
 void handle_cc_28_om1_bg_change(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_bg(cc_value);
+	cc_value = oms[0].animation->validate_lc_bg(cc_value);
 	uint16_t lm = oms[0].animation->current_fg_mode() | cc_value;
 	oms[0].animation->change_lighting_mode(lm);
 }
 
 void handle_cc_29_om2_bg_change(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_bg(cc_value);
+	cc_value = oms[1].animation->validate_lc_bg(cc_value);
 	uint16_t lm = oms[1].animation->current_fg_mode() | cc_value;
 	oms[1].animation->change_lighting_mode(lm);
 }
 
 void handle_cc_30_om3_bg_change(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_bg(cc_value);
+	cc_value = oms[2].animation->validate_lc_bg(cc_value);
 	uint16_t lm = oms[2].animation->current_fg_mode() | cc_value;
 	oms[2].animation->change_lighting_mode(lm);
 }
 
 void handle_cc_31_om4_bg_change(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_bg(cc_value);
+	cc_value = oms[3].animation->validate_lc_bg(cc_value);
 	uint16_t lm = oms[3].animation->current_fg_mode() | cc_value;
 	oms[3].animation->change_lighting_mode(lm);
 }
@@ -522,14 +467,14 @@ void handle_cc_41_om1_servo_pos(uint8_t channel, uint8_t cc_value)
 }
 void handle_cc_46_om5_bg_change(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_bg(cc_value);
+	cc_value = oms[4].animation->validate_lc_bg(cc_value);
 	uint16_t lm = oms[4].animation->current_fg_mode() | cc_value;
 	oms[4].animation->change_lighting_mode(lm);
 }
 	
 void handle_cc_47_om6_bg_change(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_bg(cc_value);
+	cc_value = oms[5].animation->validate_lc_bg(cc_value);
 	uint16_t lm = oms[5].animation->current_fg_mode() | cc_value;
 	oms[5].animation->change_lighting_mode(lm);
 }
@@ -573,7 +518,7 @@ void handle_cc_57_om6_fg_rainbow(uint8_t channel, uint8_t cc_value)
 void handle_cc_58_om1_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_fg(shifted_value);
+	shifted_value = oms[0].animation->validate_lc_fg(shifted_value);
 	uint16_t lm = oms[0].animation->current_bg_mode() | shifted_value;
 	oms[0].animation->change_lighting_mode(lm);
 }
@@ -581,7 +526,7 @@ void handle_cc_58_om1_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_59_om2_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_fg(shifted_value);
+	shifted_value = oms[1].animation->validate_lc_fg(shifted_value);
 	uint16_t lm = oms[1].animation->current_bg_mode() | shifted_value;
 	oms[1].animation->change_lighting_mode(lm);
 }
@@ -589,7 +534,7 @@ void handle_cc_59_om2_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_60_om3_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_fg(shifted_value);
+	shifted_value = oms[2].animation->validate_lc_fg(shifted_value);
 	uint16_t lm = oms[2].animation->current_bg_mode() | shifted_value;
 	oms[2].animation->change_lighting_mode(lm);
 }
@@ -597,7 +542,7 @@ void handle_cc_60_om3_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_61_om4_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_fg(shifted_value);
+	shifted_value = oms[3].animation->validate_lc_fg(shifted_value);
 	uint16_t lm = oms[3].animation->current_bg_mode() | shifted_value;
 	oms[3].animation->change_lighting_mode(lm);
 }
@@ -605,7 +550,7 @@ void handle_cc_61_om4_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_62_om5_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_fg(shifted_value);
+	shifted_value = oms[4].animation->validate_lc_fg(shifted_value);
 	uint16_t lm = oms[4].animation->current_bg_mode() | shifted_value;
 	oms[4].animation->change_lighting_mode(lm);
 }
@@ -613,7 +558,7 @@ void handle_cc_62_om5_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_63_om6_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_fg(shifted_value);
+	shifted_value = oms[5].animation->validate_lc_fg(shifted_value);
 	uint16_t lm = oms[5].animation->current_bg_mode() | shifted_value;
 	oms[5].animation->change_lighting_mode(lm);
 }
@@ -681,73 +626,73 @@ void handle_cc_107_om6_trigger_rainbow(uint8_t channel, uint8_t cc_value)
 	
 void handle_cc_108_om1_trigger(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[0].animation->validate_lc_trigger(cc_value);
 	oms[0].animation->trigger_event(cc_value);
 }
 
 void handle_cc_109_om2_trigger(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[1].animation->validate_lc_trigger(cc_value);
 	oms[1].animation->trigger_event(cc_value);
 }
 	
 void handle_cc_110_om3_trigger(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[2].animation->validate_lc_trigger(cc_value);
 	oms[2].animation->trigger_event(cc_value);
 }
 	
 void handle_cc_111_om4_trigger(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[3].animation->validate_lc_trigger(cc_value);
 	oms[3].animation->trigger_event(cc_value);
 }
 	
 void handle_cc_112_om5_trigger(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[4].animation->validate_lc_trigger(cc_value);
 	oms[4].animation->trigger_event(cc_value);
 }
 	
 void handle_cc_113_om6_trigger(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[5].animation->validate_lc_trigger(cc_value);
 	oms[5].animation->trigger_event(cc_value);
 }
 	
 void handle_cc_114_om1_note_trigger_type(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[0].animation->validate_lc_trigger(cc_value);
 	note_trigger_type[0] = cc_value;
 }
 
 void handle_cc_115_om2_note_trigger_type(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[1].animation->validate_lc_trigger(cc_value);
 	note_trigger_type[1] = cc_value;
 }
 	
 void handle_cc_116_om3_note_trigger_type(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[2].animation->validate_lc_trigger(cc_value);
 	note_trigger_type[2] = cc_value;
 }
 	
 void handle_cc_117_om4_note_trigger_type(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[3].animation->validate_lc_trigger(cc_value);
 	note_trigger_type[3] = cc_value;
 }
 	
 void handle_cc_118_om5_note_trigger_type(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[4].animation->validate_lc_trigger(cc_value);
 	note_trigger_type[4] = cc_value;
 }
 	
 void handle_cc_119_om6_note_trigger_type(uint8_t channel, uint8_t cc_value)
 {
-	cc_value = validate_lc_trigger(cc_value);
+	cc_value = oms[5].animation->validate_lc_trigger(cc_value);
 	note_trigger_type[5] = cc_value;
 }
 

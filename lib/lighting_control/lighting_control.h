@@ -102,12 +102,14 @@ enum lc_bg{
 
 	//this will populate a rainbow like above, but it will animate it by offseting the color pattern over time.
 	rainbow_slow_rotate = 0x0005
+
+	//make sure to update the validate_lc_bg() function if adding new modes
 };
 
 //These are foreground modes, they will render animations over the background modes above.
 enum lc_fg{
 	//this is a mode that has no additional foreground animation over the background animation.
-	none = 0x0000,
+	no_fg = 0x0000,
 
 	//this will display a fixed pattern the same as a marquee chase animation that will only move if the offset is changed manually where the color is always a solid constant color.
 	marquee_solid_fixed = 0x0100,
@@ -123,6 +125,8 @@ enum lc_fg{
 
 	//this will render the foreground rainbow based on the offset value, and leave LEDs below the offset value alone.
 	vu_meter = 0x0500
+
+	//make sure to update the validate_lc_fg() function if adding new modes
 };
 
 //these are trigger_event animations. They operate only when called externally by trigger_event(), and override the foreground and background effects.
@@ -176,7 +180,13 @@ enum lc_trigger{
 	//this will flash all the LEDs for the head a single color for a short time.
 	//Each flash will be a new color in the order of the rainbow.
 	//needs to be externallt triggered
-	flash_rainbow = 10
+	flash_rainbow = 10,
+
+	//this is a fallback value that doesn't have any animation 
+	//it's essentially the same as disabling triggers
+	no_trigger = 255
+
+	//make sure to update the validate_lc_trigger() function if adding new modes
 };
 
 //defines to make the code more readable:
@@ -269,7 +279,7 @@ const uint8_t PROGMEM gamma8[] = {
 
 //this is a structure for holding trigger_event animations. It will track the frames, color, and position or any trigger_events that aren't LC_TRIGGER_BG or LC_TRIGGER_FG events.
 struct TriggerEvent{
-	uint16_t type;
+	uint8_t type;
 	int32_t total_frames;
 	int32_t current_frame;
 	uint32_t color;
@@ -297,7 +307,7 @@ class Animation{
 		void update();
 
 		//this can be called by programs to trigger events, such as LM_SHOTs or LM_COLOR_PULSES - what happens depends on the lighting_mode
-		void trigger_event(uint16_t trigger_type);
+		void trigger_event(uint8_t trigger_type);
 
 		//this will change the foreground or background lighting mode, resetting all values to their defaults for that lighting mode:
 		void change_lighting_mode(uint16_t new_lighting_mode);
@@ -310,9 +320,20 @@ class Animation{
 		//the type can be LC_BG, LC_FG, or LC_TRIGGER, to set which offset to change.
 		void change_offset(uint8_t type, int32_t new_offset, int32_t alternate_max_value = LC_MAX_OFFSET);
 
-		//these return the current fg and bg animation modes:
+		//these return the current bg animation modes:
 		uint16_t current_bg_mode();
+		
+		//these return the current fg animation modes:
 		uint16_t current_fg_mode();
+
+		//this takes an int value and returns a valid lc_bg::* mode if the int is out of bounds
+		uint8_t validate_lc_bg(uint8_t);
+
+		//this takes an int value and returns a valid lc_fg::* mode if the int is out of bounds
+		uint16_t validate_lc_fg(uint16_t);
+
+		//this takes an int value and returns a valid lc_trigger::* mode if the int is out of bounds
+		uint8_t validate_lc_trigger(uint8_t);
 
 		//this stores the leds the animation works on, in sequential order.
 		//The values in this array are the position of the Adafruit_NeoPixel strip object, in the order to animate on.
