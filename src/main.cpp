@@ -78,6 +78,8 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 void _softRestart(void)
 {
+	Serial.println("Hard reset request received. Restarting in 5 seconds...");
+	delay(5000);
 	Serial.end();  //clears the serial monitor  if used
 	SCB_AIRCR = 0x05FA0004;  //write value for restart
 }
@@ -331,9 +333,420 @@ oMIDItone oms[NUM_OMIDITONES] = {
 		&om6_animation),
 };
 
-//TIM:
-//need to make all the MIDI CC handler functions for oMIDItone specific tasks,
-//such as lighting functions and animations.
+//a quick check to make sure a number corresponds to a valid rainbow in the rb_array
+//if the number is larger than the num_rainbows, it returns 0, otherwise it returns value
+uint8_t validate_rainbow_number(uint8_t value)
+{
+	if(value > num_rainbows){
+		return 0;
+	} else {
+		return value;
+	}
+}
+
+//this checks to see if a cc_value corresponds to a valid lc_bg enum value:
+//returns value if valid, sets to DEFAULT_BG_MODE if invalid
+uint8_t validate_lc_bg(uint8_t value){
+	if(
+		value == lc_bg::no_bg ||
+		value == lc_bg::solid ||
+		value == lc_bg::slow_fade ||
+		value == lc_bg::rainbow_fixed ||
+		value == lc_bg::rainbow_slow_rotate ){
+		return value;
+	} else {
+		return DEFAULT_FG_MODE;
+	}
+}
+
+//this checks to see if a cc_value corresponds to a valid lc_fg enum value:
+//returns value if valid, sets to DEFAULT_FG_MODE if invalid
+uint8_t validate_lc_fg(uint16_t value){
+	if(
+		value == lc_fg::none ||
+		value == lc_fg::marquee_solid_fixed ||
+		value == lc_fg::marquee_solid ||
+		value == lc_fg::marquee_slow_fade_fixed ||
+		value == lc_fg::marquee_slow_fade ||
+		value == lc_fg::vu_meter ){
+		return value;
+	} else {
+		return DEFAULT_BG_MODE;
+	}
+}
+
+//this checks to see if a cc_value corresponds to a valid lc_trigger enum value:
+//returns value if valid, sets to DEFAULT_TRIGGER_MODE if invalid
+uint8_t validate_lc_trigger(uint16_t value){
+	if(
+		value == lc_trigger::bg ||
+		value == lc_trigger::fg ||
+		value == lc_trigger::color_pulse ||
+		value == lc_trigger::color_pulse_slow_fade ||
+		value == lc_trigger::color_pulse_rainbow ||
+		value == lc_trigger::color_shot ||
+		value == lc_trigger::color_shot_slow_fade ||
+		value == lc_trigger::color_shot_rainbow ||
+		value == lc_trigger::flash ||
+		value == lc_trigger::flash_slow_fade ||
+		value == lc_trigger::flash_rainbow ){
+		return value;
+	} else {
+		return DEFAULT_TRIGGER_MODE;
+	}
+}
+
+//the next 55 functions are the CC handlers for lighting effects, servo 
+//positions, pitch correction, note triggering, etc. that are called 
+//automatically by the MIDIController when received during an update.
+//They need to be assigned in the setup() function.
+
+void handle_cc_9_hard_reset(uint8_t channel, uint8_t cc_value)
+{
+	_softRestart();
+}
+
+void handle_cc_14_pitch_correction_toggle(uint8_t channel, uint8_t cc_value)
+{
+	if(cc_value == 0){
+		for(int i=0; i<NUM_OMIDITONES; i++){
+			oms[i].disable_pitch_correction();
+		}
+	} else {
+		for(int i=0; i<NUM_OMIDITONES; i++){
+			oms[i].enable_pitch_correction();
+		}
+	}
+}
+
+void handle_cc_15_note_trigger_toggle(uint8_t channel, uint8_t cc_value)
+{
+	if(cc_value == 0){
+		note_trigger_is_enabled = false;
+	} else {
+		note_trigger_is_enabled = true;
+	}
+}
+
+void handle_cc_20_lighting_toggle(uint8_t channel, uint8_t cc_value)
+{
+	if(cc_value == 0){
+		lighting_is_enabled = false;
+	} else {
+		lighting_is_enabled = true;
+	}
+}
+
+void handle_cc_21_servo_toggle(uint8_t channel, uint8_t cc_value)
+{
+	if(cc_value == 0){
+		for(int i=0; i<NUM_OMIDITONES; i++){
+			oms[i].disable_servos();
+		}
+	} else {
+		for(int i=0; i<NUM_OMIDITONES; i++){
+			oms[i].enable_servos();
+		}
+	}
+}
+
+void handle_cc_22_om1_bg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[0].animation->change_rainbow(LC_BG, rb_array[cc_value]);
+}
+
+void handle_cc_23_om2_bg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[1].animation->change_rainbow(LC_BG, rb_array[cc_value]);
+}
+
+void handle_cc_24_om3_bg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[2].animation->change_rainbow(LC_BG, rb_array[cc_value]);
+}
+
+void handle_cc_25_om4_bg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[3].animation->change_rainbow(LC_BG, rb_array[cc_value]);
+}
+
+void handle_cc_26_om5_bg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[4].animation->change_rainbow(LC_BG, rb_array[cc_value]);
+}
+
+void handle_cc_27_om6_bg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[5].animation->change_rainbow(LC_BG, rb_array[cc_value]);
+}
+
+void handle_cc_28_om1_bg_change(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_bg(cc_value);
+	uint16_t lm = oms[0].animation->current_fg_mode() | cc_value;
+	oms[0].animation->change_lighting_mode(lm);
+}
+
+void handle_cc_29_om2_bg_change(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_bg(cc_value);
+	uint16_t lm = oms[1].animation->current_fg_mode() | cc_value;
+	oms[1].animation->change_lighting_mode(lm);
+}
+
+void handle_cc_30_om3_bg_change(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_bg(cc_value);
+	uint16_t lm = oms[2].animation->current_fg_mode() | cc_value;
+	oms[2].animation->change_lighting_mode(lm);
+}
+
+void handle_cc_31_om4_bg_change(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_bg(cc_value);
+	uint16_t lm = oms[3].animation->current_fg_mode() | cc_value;
+	oms[3].animation->change_lighting_mode(lm);
+}
+void handle_cc_41_om1_servo_pos(uint8_t channel, uint8_t cc_value)
+{
+	oms[0].set_servos(cc_value);
+}
+void handle_cc_46_om5_bg_change(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_bg(cc_value);
+	uint16_t lm = oms[4].animation->current_fg_mode() | cc_value;
+	oms[4].animation->change_lighting_mode(lm);
+}
+	
+void handle_cc_47_om6_bg_change(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_bg(cc_value);
+	uint16_t lm = oms[5].animation->current_fg_mode() | cc_value;
+	oms[5].animation->change_lighting_mode(lm);
+}
+	
+void handle_cc_52_om1_fg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[0].animation->change_rainbow(LC_FG, rb_array[cc_value]);
+}
+	
+void handle_cc_53_om2_fg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[1].animation->change_rainbow(LC_FG, rb_array[cc_value]);
+}
+	
+void handle_cc_54_om3_fg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[2].animation->change_rainbow(LC_FG, rb_array[cc_value]);
+}
+	
+void handle_cc_55_om4_fg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[3].animation->change_rainbow(LC_FG, rb_array[cc_value]);
+}
+	
+void handle_cc_56_om5_fg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[4].animation->change_rainbow(LC_FG, rb_array[cc_value]);
+}
+	
+void handle_cc_57_om6_fg_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[5].animation->change_rainbow(LC_FG, rb_array[cc_value]);
+}
+	
+void handle_cc_58_om1_fg_change(uint8_t channel, uint8_t cc_value)
+{
+	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
+	shifted_value = validate_lc_bg(shifted_value);
+	uint16_t lm = oms[0].animation->current_bg_mode() | shifted_value;
+	oms[0].animation->change_lighting_mode(lm);
+}
+
+void handle_cc_59_om2_fg_change(uint8_t channel, uint8_t cc_value)
+{
+	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
+	shifted_value = validate_lc_bg(shifted_value);
+	uint16_t lm = oms[1].animation->current_bg_mode() | shifted_value;
+	oms[1].animation->change_lighting_mode(lm);
+}
+	
+void handle_cc_60_om3_fg_change(uint8_t channel, uint8_t cc_value)
+{
+	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
+	shifted_value = validate_lc_bg(shifted_value);
+	uint16_t lm = oms[2].animation->current_bg_mode() | shifted_value;
+	oms[2].animation->change_lighting_mode(lm);
+}
+	
+void handle_cc_61_om4_fg_change(uint8_t channel, uint8_t cc_value)
+{
+	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
+	shifted_value = validate_lc_bg(shifted_value);
+	uint16_t lm = oms[3].animation->current_bg_mode() | shifted_value;
+	oms[3].animation->change_lighting_mode(lm);
+}
+	
+void handle_cc_62_om5_fg_change(uint8_t channel, uint8_t cc_value)
+{
+	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
+	shifted_value = validate_lc_bg(shifted_value);
+	uint16_t lm = oms[4].animation->current_bg_mode() | shifted_value;
+	oms[4].animation->change_lighting_mode(lm);
+}
+	
+void handle_cc_63_om6_fg_change(uint8_t channel, uint8_t cc_value)
+{
+	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
+	shifted_value = validate_lc_bg(shifted_value);
+	uint16_t lm = oms[5].animation->current_bg_mode() | shifted_value;
+	oms[5].animation->change_lighting_mode(lm);
+}
+	
+void handle_cc_85_om2_servo_pos(uint8_t channel, uint8_t cc_value)
+{
+	oms[1].set_servos(cc_value);
+}
+	
+void handle_cc_86_om3_servo_pos(uint8_t channel, uint8_t cc_value)
+{
+	oms[2].set_servos(cc_value);
+	
+}
+void handle_cc_87_om4_servo_pos(uint8_t channel, uint8_t cc_value)
+{
+	oms[3].set_servos(cc_value);
+	
+}
+void handle_cc_89_om5_servo_pos(uint8_t channel, uint8_t cc_value)
+{
+	oms[4].set_servos(cc_value);
+	
+}
+void handle_cc_90_om6_servo_pos(uint8_t channel, uint8_t cc_value)
+{
+	oms[5].set_servos(cc_value);
+	
+}
+void handle_cc_102_om1_trigger_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[0].animation->change_rainbow(LC_TRIGGER, rb_array[cc_value]);
+	
+}
+void handle_cc_103_om2_trigger_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[1].animation->change_rainbow(LC_TRIGGER, rb_array[cc_value]);
+}
+	
+void handle_cc_104_om3_trigger_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[2].animation->change_rainbow(LC_TRIGGER, rb_array[cc_value]);
+}
+	
+void handle_cc_105_om4_trigger_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[3].animation->change_rainbow(LC_TRIGGER, rb_array[cc_value]);
+}
+	
+void handle_cc_106_om5_trigger_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[4].animation->change_rainbow(LC_TRIGGER, rb_array[cc_value]);
+}
+	
+void handle_cc_107_om6_trigger_rainbow(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_rainbow_number(cc_value);
+	oms[5].animation->change_rainbow(LC_TRIGGER, rb_array[cc_value]);
+}
+	
+void handle_cc_108_om1_trigger(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	oms[0].animation->trigger_event(cc_value);
+}
+
+void handle_cc_109_om2_trigger(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	oms[1].animation->trigger_event(cc_value);
+}
+	
+void handle_cc_110_om3_trigger(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	oms[2].animation->trigger_event(cc_value);
+}
+	
+void handle_cc_111_om4_trigger(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	oms[3].animation->trigger_event(cc_value);
+}
+	
+void handle_cc_112_om5_trigger(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	oms[4].animation->trigger_event(cc_value);
+}
+	
+void handle_cc_113_om6_trigger(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	oms[5].animation->trigger_event(cc_value);
+}
+	
+void handle_cc_114_om1_note_trigger_type(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	note_trigger_type[0] = cc_value;
+}
+
+void handle_cc_115_om2_note_trigger_type(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	note_trigger_type[1] = cc_value;
+}
+	
+void handle_cc_116_om3_note_trigger_type(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	note_trigger_type[2] = cc_value;
+}
+	
+void handle_cc_117_om4_note_trigger_type(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	note_trigger_type[3] = cc_value;
+}
+	
+void handle_cc_118_om5_note_trigger_type(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	note_trigger_type[4] = cc_value;
+}
+	
+void handle_cc_119_om6_note_trigger_type(uint8_t channel, uint8_t cc_value)
+{
+	cc_value = validate_lc_trigger(cc_value);
+	note_trigger_type[5] = cc_value;
+}
 
 //This tracks the current head so the iteration isn't always in the same place.
 int head_offset = 0;
@@ -379,6 +792,7 @@ void update_oMIDItones(void)
 	//TIM: figure out a sane way to assign notes to heads
 	//keep in mind notes can be added, removed, or changed
 	//and different actions will be needed for each of these options.
+
 }
 
 //this function callc the lc.update() function whenever lighting is enabled, and marks the head tunings as invalid after
@@ -427,7 +841,59 @@ void setup(void)
 	mc.init();
 
 	//assign MIDI CC handler functions as needed
-	//mc.assign_cc_handler(cc_number, function_name);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_9, handle_cc_9_hard_reset);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_14, handle_cc_14_pitch_correction_toggle);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_15, handle_cc_15_note_trigger_toggle);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_20, handle_cc_20_lighting_toggle);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_21, handle_cc_21_servo_toggle);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_22, handle_cc_22_om1_bg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_23, handle_cc_23_om2_bg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_24, handle_cc_24_om3_bg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_25, handle_cc_25_om4_bg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_26, handle_cc_26_om5_bg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_27, handle_cc_27_om6_bg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_28, handle_cc_28_om1_bg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_29, handle_cc_29_om2_bg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_30, handle_cc_30_om3_bg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_31, handle_cc_31_om4_bg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_41, handle_cc_41_om1_servo_pos);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_46, handle_cc_46_om5_bg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_47, handle_cc_47_om6_bg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_52, handle_cc_52_om1_fg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_53, handle_cc_53_om2_fg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_54, handle_cc_54_om3_fg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_55, handle_cc_55_om4_fg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_56, handle_cc_56_om5_fg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_57, handle_cc_57_om6_fg_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_58, handle_cc_58_om1_fg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_59, handle_cc_59_om2_fg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_60, handle_cc_60_om3_fg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_61, handle_cc_61_om4_fg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_62, handle_cc_62_om5_fg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_63, handle_cc_63_om6_fg_change);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_85, handle_cc_85_om2_servo_pos);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_86, handle_cc_86_om3_servo_pos);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_87, handle_cc_87_om4_servo_pos);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_89, handle_cc_89_om5_servo_pos);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_90, handle_cc_90_om6_servo_pos);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_102, handle_cc_102_om1_trigger_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_103, handle_cc_103_om2_trigger_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_104, handle_cc_104_om3_trigger_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_105, handle_cc_105_om4_trigger_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_106, handle_cc_106_om5_trigger_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_107, handle_cc_107_om6_trigger_rainbow);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_108, handle_cc_108_om1_trigger);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_109, handle_cc_109_om2_trigger);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_110, handle_cc_110_om3_trigger);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_111, handle_cc_111_om4_trigger);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_112, handle_cc_112_om5_trigger);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_113, handle_cc_113_om6_trigger);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_114, handle_cc_114_om1_note_trigger_type);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_115, handle_cc_115_om2_note_trigger_type);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_116, handle_cc_116_om3_note_trigger_type);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_117, handle_cc_117_om4_note_trigger_type);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_118, handle_cc_118_om5_note_trigger_type);
+	mc.assign_midi_cc_handler(MIDI_CC::undefined_119, handle_cc_119_om6_note_trigger_type);
 
 	#ifdef OMIDITONE_DEBUG
 		Serial.println("Init Complete, awaiting MIDI input.");
