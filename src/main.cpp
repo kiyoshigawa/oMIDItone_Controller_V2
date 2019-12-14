@@ -346,6 +346,7 @@ uint8_t validate_rainbow_number(uint8_t value)
 
 //this checks to see if a cc_value corresponds to a valid lc_bg enum value:
 //returns value if valid, sets to DEFAULT_BG_MODE if invalid
+//make sure to update if any new lighting animations are added
 uint8_t validate_lc_bg(uint8_t value){
 	if(
 		value == lc_bg::no_bg ||
@@ -355,13 +356,14 @@ uint8_t validate_lc_bg(uint8_t value){
 		value == lc_bg::rainbow_slow_rotate ){
 		return value;
 	} else {
-		return DEFAULT_FG_MODE;
+		return DEFAULT_BG_MODE;
 	}
 }
 
 //this checks to see if a cc_value corresponds to a valid lc_fg enum value:
 //returns value if valid, sets to DEFAULT_FG_MODE if invalid
-uint8_t validate_lc_fg(uint16_t value){
+//make sure to update if any new lighting animations are added
+uint16_t validate_lc_fg(uint16_t value){
 	if(
 		value == lc_fg::none ||
 		value == lc_fg::marquee_solid_fixed ||
@@ -371,12 +373,13 @@ uint8_t validate_lc_fg(uint16_t value){
 		value == lc_fg::vu_meter ){
 		return value;
 	} else {
-		return DEFAULT_BG_MODE;
+		return DEFAULT_FG_MODE;
 	}
 }
 
 //this checks to see if a cc_value corresponds to a valid lc_trigger enum value:
 //returns value if valid, sets to DEFAULT_TRIGGER_MODE if invalid
+//make sure to update if any new lighting animations are added
 uint8_t validate_lc_trigger(uint16_t value){
 	if(
 		value == lc_trigger::bg ||
@@ -570,7 +573,7 @@ void handle_cc_57_om6_fg_rainbow(uint8_t channel, uint8_t cc_value)
 void handle_cc_58_om1_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_bg(shifted_value);
+	shifted_value = validate_lc_fg(shifted_value);
 	uint16_t lm = oms[0].animation->current_bg_mode() | shifted_value;
 	oms[0].animation->change_lighting_mode(lm);
 }
@@ -578,7 +581,7 @@ void handle_cc_58_om1_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_59_om2_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_bg(shifted_value);
+	shifted_value = validate_lc_fg(shifted_value);
 	uint16_t lm = oms[1].animation->current_bg_mode() | shifted_value;
 	oms[1].animation->change_lighting_mode(lm);
 }
@@ -586,7 +589,7 @@ void handle_cc_59_om2_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_60_om3_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_bg(shifted_value);
+	shifted_value = validate_lc_fg(shifted_value);
 	uint16_t lm = oms[2].animation->current_bg_mode() | shifted_value;
 	oms[2].animation->change_lighting_mode(lm);
 }
@@ -594,7 +597,7 @@ void handle_cc_60_om3_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_61_om4_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_bg(shifted_value);
+	shifted_value = validate_lc_fg(shifted_value);
 	uint16_t lm = oms[3].animation->current_bg_mode() | shifted_value;
 	oms[3].animation->change_lighting_mode(lm);
 }
@@ -602,7 +605,7 @@ void handle_cc_61_om4_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_62_om5_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_bg(shifted_value);
+	shifted_value = validate_lc_fg(shifted_value);
 	uint16_t lm = oms[4].animation->current_bg_mode() | shifted_value;
 	oms[4].animation->change_lighting_mode(lm);
 }
@@ -610,7 +613,7 @@ void handle_cc_62_om5_fg_change(uint8_t channel, uint8_t cc_value)
 void handle_cc_63_om6_fg_change(uint8_t channel, uint8_t cc_value)
 {
 	uint16_t shifted_value = cc_value << 8; //since MIDI is only 7 bit, needed to offset manually to get correct values over MIDI commands
-	shifted_value = validate_lc_bg(shifted_value);
+	shifted_value = validate_lc_fg(shifted_value);
 	uint16_t lm = oms[5].animation->current_bg_mode() | shifted_value;
 	oms[5].animation->change_lighting_mode(lm);
 }
@@ -911,22 +914,3 @@ void loop(void)
 	//this will update all lighting functions on a regular basis
 	update_lighting();
 }
-
-/* Old code that needs to be reintegrated or replaced...
-
-
-
-//this function moves the head in question to the end of the head_order_array, and shuffles the remaining heads down into its place.
-void pending_head_order_to_end(uint8_t head_number){
-	//don't need to iterate to the last one, because if the head_number is in the last position already, we're good
-	for(int i=0; i<NUM_OMIDITONES-1; i++){
-		if(pending_head_order_array[i] == head_number){
-			//set the current position to the next head in line
-			pending_head_order_array[i] = pending_head_order_array[i+1];
-			//and move the head in question down the line until it's in the last place
-			pending_head_order_array[i+1] = head_number;
-		}
-	}
-}
-
-*/
