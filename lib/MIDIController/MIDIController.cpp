@@ -280,6 +280,7 @@ void MIDIController::handle_pitch_bend(uint8_t channel, int16_t pitch)
 			//the pitch bend will be calculated automatically by this function based on the updated current_pitch_bends[channel] value
 			current_notes[i].freq = calculate_note_frequency(channel, current_notes[i].note);
 			new_note_changed = true;
+
 		}
 	}
 	#ifdef MIDI_DEBUG_PITCH_BEND
@@ -1176,7 +1177,12 @@ uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 		//return midi_freqs[channel][note];
 	} else {
 		//this takes the pitch_bend and maps it to the corresponding number of cents
-		int32_t pitch_bend_offset = map(current_pitch_bends[channel], -8192, 8192, -max_pitch_bend_offsets[channel], max_pitch_bend_offsets[channel]);
+		int32_t pitch_bend_offset = map(
+			current_pitch_bends[channel], 
+			-MIDI_MAX_2_BYTE_VALUE/2, 
+			MIDI_MAX_2_BYTE_VALUE/2, 
+			-max_pitch_bend_offsets[channel], 
+			max_pitch_bend_offsets[channel]);
 		//figure out how manu semitones away the pitch_bend_offset is:
 		//the +50/-50 is to make it round correctly by offsetting halfway to the next integer and letting c truncate in the right direction for me
 		int32_t num_semitones_bent;

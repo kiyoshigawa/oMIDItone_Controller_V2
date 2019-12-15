@@ -102,7 +102,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define MIN_TIME_BETWEEN_RISING_EDGE_MEASUREMENTS 1
 
 //Time to wait between receiving a note and starting to play that note (in ms).
-#define NOTE_WAIT_TIME 10
+#define NOTE_WAIT_TIME 3
 
 //this is to make sure frequency corrections are not too frequent (in ms):
 #define TIME_BETWEEN_FREQ_CORRECTIONS 20

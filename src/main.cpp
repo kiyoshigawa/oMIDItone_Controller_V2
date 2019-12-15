@@ -713,6 +713,9 @@ void handle_cc_119_om6_note_trigger_type(uint8_t channel, uint8_t cc_value)
 	note_trigger_type[5] = cc_value;
 }
 
+//this tracks which heads are free to play notes and which have alreayd been assigned a note.
+bool is_head_available_array[NUM_OMIDITONES];
+
 //this tracks the note number currently being played on a head
 uint8_t head_note_array[NUM_OMIDITONES];
 
@@ -767,40 +770,49 @@ void update_oMIDItones(void)
 	bool note_was_added = mc.note_was_added();
 	bool note_was_changed = mc.note_was_changed();
 	bool note_was_removed = mc.note_was_removed();
-	//check to see if any currently playing notes have changed first.
+
+	//make sure no heads have dropped a note
+	for(int h=0; h<NUM_OMIDITONES; h++){
+		if(oms[h].note_was_dropped()){
+			//if a head dropped a note, we need to reassign notes:
+			note_was_added = true;
+		}
+	}
+
+	//check to see if any currently playing notes have changed and update them first.
 	if(note_was_changed){
 		//check to see if a currently-playing note changed and update the head frequency.
 		for(int h=0; h<NUM_OMIDITONES; h++){
 			//if the head isn't playing a note, break:
 			if(oms[h].is_ready()){
-				break;
-			}
-			//check to see if the note the head is currently playing is no longer in the array
-			uint8_t note_position = mc.check_note(head_channel_array[h], head_note_array[h]);
-			if(note_position != NO_NOTE){
-				bool can_play_new_freq = oms[h].update_freq(mc.current_notes[note_position].freq);
-				if(!can_play_new_freq){
-					//if it can't play the updated frequency, force the heads to reassign all notes.
-					note_was_added = true;
+				//don't change anything
+			} else {
+				//check to see if the note the head is currently playing is no longer in the array
+				uint8_t note_position = mc.check_note(head_channel_array[h], head_note_array[h]);
+				if(note_position != NO_NOTE){
+					bool can_play_new_freq = oms[h].update_freq(mc.current_notes[note_position].freq);
+					if(!can_play_new_freq){
+						//if it can't play the updated frequency, force the heads to reassign all notes.
+						//this will make sure pitch bends don't get lost at the edges of what heads can play.
+						note_was_added = true;
+					}
+					#ifdef NOTE_DEBUG
+							Serial.print("H");
+							Serial.print(head_order_array[h]);
+							Serial.print(": Note ");
+							Serial.print(head_note_array[h]);
+							Serial.println(" changed.");
+					#endif
 				}
-				#ifdef NOTE_DEBUG
-						Serial.print("H");
-						Serial.print(head_order_array[h]);
-						Serial.print(": Note ");
-						Serial.print(head_note_array[h]);
-						Serial.println(" changed.");
-				#endif
 			}
 		}
 	}
 	
-	//if a note was added or removed, we need to update all the heads:
+	//if a note was added or removed, we need to reassign all the heads:
 	if(note_was_added || note_was_removed){
 		//need to track how many heads have been assigned notes:
 		uint8_t num_assigned_heads = 0;
-		//we also need to make all heads available and reassign when a note is
-		//added or removed
-		bool is_head_available_array[NUM_OMIDITONES];
+		//we need to make all heads available and clear their current notes
 		for(int h=0; h<NUM_OMIDITONES; h++){
 			is_head_available_array[h] = true;
 			head_note_array[h] = NO_NOTE;
@@ -819,40 +831,47 @@ void update_oMIDItones(void)
 			//check each head to see if it can play the note:
 			for(int h=0; h<NUM_OMIDITONES; h++){
 				//if the head can play the note
-				if(oms[head_order_array[h]].can_play_freq(mc.current_notes[n].freq)){
-					if(!is_head_available_array[head_order_array[h]]){
-						//if the head is already playing a note, break:
+				uint8_t head = head_order_array[h];
+				if(oms[head].can_play_freq(mc.current_notes[n].freq)){
+					if(is_head_available_array[head]){
+						//assign the note in the head note array
+						is_head_available_array[head] = false;
+						head_note_array[head] = mc.current_notes[n].note;
+						head_channel_array[head] = mc.current_notes[n].channel;
+						oms[head].play_freq(mc.current_notes[n].freq);
+						//if note triggers are enabled, trigger an effect
+						if(note_trigger_is_enabled){
+							oms[head].animation->trigger_event(note_trigger_type[head]);
+						}
+						//move the head to the end of the pending head order:
+						pending_head_order_to_end(head);
+						#ifdef NOTE_DEBUG
+							Serial.print("H");
+							Serial.print(head);
+							Serial.print(": Playing Note ");
+							Serial.println(mc.current_notes[n].note);
+						#endif
+						//increase the number of assigned heads:
+						num_assigned_heads++;
+						//break the for loop for the heads once a head is assigned
+						//otherwise they will all try to play the same note.
 						break;
-					}
-					//assign the note in the head note array
-					is_head_available_array[head_order_array[h]] = false;
-					head_note_array[head_order_array[h]] = mc.current_notes[n].note;
-					head_channel_array[head_order_array[h]] = mc.current_notes[n].channel;
-					oms[head_order_array[h]].play_freq(mc.current_notes[n].freq);
-					//if note triggers are enabled, trigger an effect
-					if(note_trigger_is_enabled){
-						oms[head_order_array[h]].animation->trigger_event(note_trigger_type[head_order_array[h]]);
-					}
-					//move the head to the end of the pending head order:
-					pending_head_order_to_end(head_order_array[h]);
-					#ifdef NOTE_DEBUG
-						Serial.print("H");
-						Serial.print(head_order_array[h]);
-						Serial.print(": Playing Note ");
-						Serial.println(mc.current_notes[n].note);
-					#endif
-					//increase the number of assigned heads:
-					num_assigned_heads++;
-					//break the head for loop to skip to the next note immediately
-					break;
-				}
-			}
+					} //end if head is available
+				}//end if can play freq
+			}//end head for loop
 			//if all heads are assigned, break the note for loop:
 			if(num_assigned_heads >= NUM_OMIDITONES){
 				break;
 			}
+		}//end note for loop
+		//make sure sound is off for any heads not currently assigned:
+		for(int h=0; h<NUM_OMIDITONES; h++){
+			if(is_head_available_array[h]){
+				oms[h].sound_off();
+			}
 		}
-	}
+	}//if note has changed or note was removed
+
 	//update all heads every time
 	for(int h=0; h<NUM_OMIDITONES; h++){
 		oms[h].update();

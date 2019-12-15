@@ -461,7 +461,7 @@ class MIDIController{
 		//this tracks the current pitch bend value for each channel
 		//it can be a number from -8191 to 8191
 		//it is regularly updated by incoming pitch bend messages
-		uint16_t current_pitch_bends[NUM_MIDI_CHANNELS];
+		int16_t current_pitch_bends[NUM_MIDI_CHANNELS];
 
 		//this tracks the current channel aftertouch values
 		//it is regularly updated by incoming Channel pressure messages
