@@ -32,6 +32,7 @@ MIDI_CREATE_INSTANCE(HARDWARE_MIDI_TYPE, HARDWARE_MIDI_INTERFACE, MIDI);
 //this an array of function pointers to the MIDI CC handler functions.
 //they can be overridden from the default values shown here by setting a new 
 //function pointer using the assign_midi_cc_handler() function.
+extern "C"{
 cc_handler_pointer midi_cc_handler_function_array[NUM_MIDI_CC_TYPES];
 
 //these are the function pointers to RPN values. They can be assigned using the 
@@ -40,7 +41,7 @@ rpn_handler_pointer midi_nrpn_absolute_handler_function_pointer;
 rpn_handler_pointer midi_nrpn_relative_handler_function_pointer;
 rpn_handler_pointer midi_rpn_absolute_handler_function_pointer;
 rpn_handler_pointer midi_rpn_relative_handler_function_pointer;
-
+}
 
 MIDIController::MIDIController(void)
 {

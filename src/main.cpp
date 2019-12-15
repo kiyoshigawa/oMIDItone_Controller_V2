@@ -19,6 +19,23 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
  */
 
 #include <Arduino.h>
+//TIM: remove this function once all the crashing is figured out.
+uint32_t free_mem(){ // for Teensy 3.0
+    uint32_t stackTop;
+    uint32_t heapTop;
+
+    // current position of the stack.
+    stackTop = (uint32_t) &stackTop;
+
+    // current position of heap.
+    void* hTop = malloc(1);
+    heapTop = (uint32_t) hTop;
+    free(hTop);
+
+    // The difference is (approximately) the free, available ram.
+    return stackTop - heapTop;
+}
+
 #include <ADC.h>
 #include <Adafruit_NeoPixel.h>
 #include <colors.h>
@@ -30,7 +47,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define OMIDITONE_DEBUG
 
 //This will turn on/off the debug note messages when notes are added or removed via MIDI
-//#define NOTE_DEBUG
+#define NOTE_DEBUG
 
 //defines to make the head selection code more readable:
 #define AVAILABLE true
@@ -696,6 +713,12 @@ void handle_cc_119_om6_note_trigger_type(uint8_t channel, uint8_t cc_value)
 	note_trigger_type[5] = cc_value;
 }
 
+//this tracks the note number currently being played on a head
+uint8_t head_note_array[NUM_OMIDITONES];
+
+//this tracks the channel number of the note currently being played on a head
+uint8_t head_channel_array[NUM_OMIDITONES];
+
 //This tracks the current head so the iteration isn't always in the same place.
 int head_offset = 0;
 
@@ -720,6 +743,8 @@ void pending_head_order_to_end(uint8_t head_number)
 	}
 }
 
+elapsedMillis test_timing_value_1;
+elapsedMillis test_timing_value_2;
 //this iterates through the MIDIController's current note array and assign heads to play the notes
 void update_oMIDItones(void)
 {
@@ -740,7 +765,108 @@ void update_oMIDItones(void)
 	//TIM: figure out a sane way to assign notes to heads
 	//keep in mind notes can be added, removed, or changed
 	//and different actions will be needed for each of these options.
-
+	/*
+	bool note_was_added = mc.note_was_added();
+	bool note_was_changed = mc.note_was_changed();
+	bool note_was_removed = mc.note_was_removed();
+	//check to see if any currently playing notes have changed first.
+	if(note_was_changed){
+		//check to see if a currently-playing note changed and update the head frequency.
+		for(int h=0; h<NUM_OMIDITONES; h++){
+			//if the head isn't playing a note, break:
+			if(oms[h].is_ready()){
+				break;
+			}
+			//check to see if the note the head is currently playing is no longer in the array
+			uint8_t note_position = mc.check_note(head_channel_array[h], head_note_array[h]);
+			if(note_position != NO_NOTE){
+				bool can_play_new_freq = oms[h].update_freq(mc.current_notes[note_position].freq);
+				if(!can_play_new_freq){
+					//if it can't play the updated frequency, force the heads to reassign all notes.
+					note_was_added = true;
+				}
+				#ifdef NOTE_DEBUG
+						Serial.print("H");
+						Serial.print(head_order_array[h]);
+						Serial.print(": Note ");
+						Serial.print(head_note_array[h]);
+						Serial.println(" changed.");
+				#endif
+			}
+		}
+	}
+	
+	//if a note was added or removed, we need to update all the heads:
+	if(note_was_added || note_was_removed){
+		//need to track how many heads have been assigned notes:
+		uint8_t num_assigned_heads = 0;
+		//we also need to make all heads available and reassign when a note is
+		//added or removed
+		bool is_head_available_array[NUM_OMIDITONES];
+		for(int h=0; h<NUM_OMIDITONES; h++){
+			is_head_available_array[h] = true;
+			head_note_array[h] = NO_NOTE;
+			head_channel_array[h] = NO_CHANNEL;
+		}
+		//if there are no notes, all heads to sound off.
+		if(mc.num_current_notes == 0){
+			for(int h=0; h<NUM_OMIDITONES; h++){
+				oms[head_order_array[h]].sound_off();
+				//only update the head order array if no notes are playing
+				head_order_array[h] = pending_head_order_array[h];
+			}
+		}
+		//iterate through the mc.current_notes[] array from last to first:
+		for(int n=mc.num_current_notes-1; n>=0; n--){
+			//check each head to see if it can play the note:
+			for(int h=0; h<NUM_OMIDITONES; h++){
+				//if the head can play the note
+				if(oms[head_order_array[h]].can_play_freq(mc.current_notes[n].freq)){
+					if(!is_head_available_array[head_order_array[h]]){
+						//if the head is already playing a note, break:
+						break;
+					}
+					//assign the note in the head note array
+					is_head_available_array[head_order_array[h]] = false;
+					head_note_array[head_order_array[h]] = mc.current_notes[n].note;
+					head_channel_array[head_order_array[h]] = mc.current_notes[n].channel;
+					oms[head_order_array[h]].play_freq(mc.current_notes[n].freq);
+					//if note triggers are enabled, trigger an effect
+					if(note_trigger_is_enabled){
+						oms[head_order_array[h]].animation->trigger_event(note_trigger_type[head_order_array[h]]);
+					}
+					//move the head to the end of the pending head order:
+					pending_head_order_to_end(head_order_array[h]);
+					#ifdef NOTE_DEBUG
+						Serial.print("H");
+						Serial.print(head_order_array[h]);
+						Serial.print(": Playing Note ");
+						Serial.println(mc.current_notes[n].note);
+					#endif
+					//increase the number of assigned heads:
+					num_assigned_heads++;
+					//break the head for loop to skip to the next note immediately
+					break;
+				}
+			}
+			//if all heads are assigned, break the note for loop:
+			if(num_assigned_heads >= NUM_OMIDITONES){
+				break;
+			}
+		}
+	}
+	*/
+	if(mc.num_current_notes > 0){
+		if(mc.note_was_added()){
+			oms[1].play_freq(A440_midi_freqs[60]);
+		}
+	} else {
+		oms[1].sound_off();
+	}
+	//update all heads every time
+	for(int h=0; h<NUM_OMIDITONES; h++){
+		oms[h].update();
+	}
 }
 
 //this function callc the lc.update() function whenever lighting is enabled, and marks the head tunings as invalid after
@@ -776,12 +902,14 @@ void setup(void)
 	lc.update();
 
 	//initialize the per-head stuff:
-	for(int i=0; i<NUM_OMIDITONES; i++){
-		head_order_array[i] = i;
-		pending_head_order_array[i] = i;
-		lc.add_animation(oms[i].animation);
+	for(int h=0; h<NUM_OMIDITONES; h++){
+		head_note_array[h] = NO_NOTE;
+		head_channel_array[h] = NO_CHANNEL;
+		head_order_array[h] = h;
+		pending_head_order_array[h] = h;
+		lc.add_animation(oms[h].animation);
 		//init the om objects - This is going to take a while - like several minutes:
-		oms[i].init();
+		oms[h].init();
 		lc.update();
 	}
 

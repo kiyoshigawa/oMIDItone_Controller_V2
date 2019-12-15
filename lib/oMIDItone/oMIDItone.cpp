@@ -208,7 +208,7 @@ bool oMIDItone::update_freq(uint32_t freq)
 void oMIDItone::sound_off(void)
 {
 	current_desired_freq = NO_FREQ;
-	update();
+	digitalWrite(signal_enable_optoisolator_pin, LOW);
 }
 
 void oMIDItone::set_servos(uint16_t position)
@@ -414,7 +414,6 @@ void oMIDItone::set_freq(uint32_t freq)
 	}
 	//set the current_resistance to a value that was previously measured as close to the desired note's frequency.
 	current_resistance = freq_to_resistance(current_desired_freq);
-	update();
 }
 
 void oMIDItone::measure_freq(void)
@@ -422,9 +421,9 @@ void oMIDItone::measure_freq(void)
 	//this first bit is calculating the average continuously and storing it in current_freq
 	if(is_rising_edge()){
 		//sanity check on the reading - it should never be more than ALLOWABLE_FREQ_READING_VARIANCE percent off of the desired frequency.
-		if( (last_rising_edge > (current_desired_freq*(100-ALLOWABLE_FREQ_READING_VARIANCE)/100)) &&
-			(last_rising_edge < (current_desired_freq*(100+ALLOWABLE_FREQ_READING_VARIANCE)/100))
-			){
+		uint32_t low_bound = current_desired_freq*(100-ALLOWABLE_FREQ_READING_VARIANCE)/100;
+		uint32_t high_bound = current_desired_freq*(100+ALLOWABLE_FREQ_READING_VARIANCE)/100;
+		if((last_rising_edge > low_bound) && (last_rising_edge < high_bound)){
 			//if things are compromised, reset the last_rising_edge and start over:
 			if(pitch_correction_has_been_compromised){
 				last_rising_edge = 0;
@@ -445,7 +444,7 @@ void oMIDItone::measure_freq(void)
 		} else {
 			//take action as if things are compromised and reset the last_rising_edge to start over:
 			last_rising_edge = 0;
-			//reset the flag so pitch correction can continue until it is interrupted again.
+			//reset pitch correction flag so the next reading can be used.
 			pitch_correction_has_been_compromised = false;
 			#ifdef PITCH_DEBUG
 				Serial.println("Last_rising_edge out of valid ranges.");
@@ -453,15 +452,17 @@ void oMIDItone::measure_freq(void)
 		}
 	}
 	if(freq_reading_index >= NUM_FREQ_READINGS && current_freq != NO_FREQ){
+		freq_reading_index = 0;
+		/*
 		//calculate a new average frequency
 		current_freq = average(recent_freqs, NUM_FREQ_READINGS);
 		//and reset the counter
-		freq_reading_index = 0;
 		//only when you've had a valid reading should the frequency be adjusted
 		adjust_freq();
 		//also update the measured_freqs array to be correct for the current resistasnce.
 		//TIM: Leaving this commented out for now, seems to prevent drifting over time, but requires occasional hard resets
 		//measured_freqs[current_resistance] = current_freq;
+		*/
 	}
 }
 
@@ -610,29 +611,27 @@ void oMIDItone::set_jitter_resistance(uint16_t resistance, uint16_t jitter)
 
 void oMIDItone::set_resistance(uint16_t resistance)
 {
-  //The case where we need to oscillate the 50k pot to increase resolution:
-  if(resistance >= 0 && resistance <= 512){
-    //this is divided by 2, so it returns a number between 0 and 256.
-    set_pot(cs1_pin, resistance/2);
-    //this sets to either 0 or 1 depending on the modulus with 2.
-    if(resistance % 2){
-      set_pot(cs2_pin, 0);
-    } else {
-      set_pot(cs2_pin, 1);
-    }
-
-  } else if(resistance > 512 && resistance <= NUM_RESISTANCE_STEPS)
-  {
-    //The case where the steps are above 512 means to set the 100k pot to 256 and the other to the current resistance value - 512.
-    set_pot(cs1_pin, 256);
-    set_pot(cs2_pin, resistance-512);
-  } else if(resistance < 0){
-    set_pot(cs1_pin, 0);
-    set_pot(cs2_pin, 0);
-  } else {
-    set_pot(cs1_pin, 256);
-    set_pot(cs2_pin, 256);
-  }
+	//The case where we need to oscillate the 50k pot to increase resolution:
+	if(resistance >= 0 && resistance <= 512){
+		//this is divided by 2, so it returns a number between 0 and 256.
+		set_pot(cs1_pin, resistance/2);
+		//this sets to either 0 or 1 depending on the modulus with 2.
+		if(resistance % 2){
+			set_pot(cs2_pin, 0);
+		} else {
+			set_pot(cs2_pin, 1);
+		}
+	} else if(resistance > 512 && resistance <= NUM_RESISTANCE_STEPS) {
+		//The case where the steps are above 512 means to set the 100k pot to 256 and the other to the current resistance value - 512.
+		set_pot(cs1_pin, 256);
+		set_pot(cs2_pin, resistance-512);
+	} else if(resistance < 0){
+		set_pot(cs1_pin, 0);
+		set_pot(cs2_pin, 0);
+	} else {
+		set_pot(cs1_pin, 256);
+		set_pot(cs2_pin, 256);
+	}
 }
 
 void oMIDItone::set_pot(uint16_t CS_pin, uint16_t command_byte)

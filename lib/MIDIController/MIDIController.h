@@ -54,7 +54,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define MIDI_NOTE_DEBUG
 
 //uncomment this to add more info to the MIDI note debug messages, including velocity and inverted frequency
-#define MIDI_NOTE_DEBUG_VERBOSE
+//#define MIDI_NOTE_DEBUG_VERBOSE
 
 //defaults used when creating the hardware MIDI interface
 //see teensy MIDI.h library documentation for more info
@@ -447,6 +447,10 @@ class MIDIController{
 		//this returns the state of the local control variable so that action can be taken by the controller user
 		bool is_local_control_enabled(void);
 
+		//this will check to see if a note is in the current_note_array, and return its position if it is.
+		//it will return NO_NOTE if it is not.
+		int8_t check_note(uint8_t channel, uint8_t note);
+
 		//this is an array that tracks that current state of MIDI notes on the controller.
 		//it will be regularly updated by the update() function to take into account things like pitch bends and CC messages that effect note values.
 		midi_note current_notes[MAX_CONCURRENT_MIDI_NOTES];
@@ -599,10 +603,6 @@ class MIDIController{
 		//this will remove a note from the note array and shift the remaining notes down
 		//if the note is not in the array, nothing will change
 		void rm_note(uint8_t channel, uint8_t note);
-
-		//this will check to see if a note is in the current_note_array, and return its position if it is.
-		//it will return NO_NOTE if it is not.
-		int8_t check_note(uint8_t channel, uint8_t note);
 
 		//this will calculate the inverted note frequency in microseconds based on the current pitch bend value for the channel and the note number
 		//it will also take into account the max pitch bend values set via MIDI RPN commands if they are not the default value of 2 semitones.

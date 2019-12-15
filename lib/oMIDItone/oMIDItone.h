@@ -62,7 +62,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 //comment this out to disable pitch debug messages
 //this will turn on or off output messages about the frequency measurements in the measure_freq() function:
-//#define PITCH_DEBUG
+#define PITCH_DEBUG
 
 //comment this out to disable verbose frequency adjustment messages for every change in frequency
 //#define PITCH_VERBOSE_DEBUG
@@ -99,12 +99,12 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define UNREASONABLY_LARGE_MULTIPLIER 2
 
 //this is to make sure that the rising edge isn't measured too often (in us):
-#define MIN_TIME_BETWEEN_RISING_EDGE_MEASUREMENTS 1
+#define MIN_TIME_BETWEEN_RISING_EDGE_MEASUREMENTS 2
 
 //Time to wait between receiving a note and starting to play that note (in ms).
 #define NOTE_WAIT_TIME 10
 
-//this is to make sure frequency corrections are not too frequent (in us):
+//this is to make sure frequency corrections are not too frequent (in ms):
 #define TIME_BETWEEN_FREQ_CORRECTIONS 20
 
 //this is a jitter value to randomize the resistance in an attempt to counter the frequency variation around a specific resistance value. it is measured in resistance steps
@@ -179,6 +179,9 @@ class oMIDItone {
 		//This will return true if init was successful AND there is no current frequency playing.
 		bool is_ready(void);
 
+		//This will check if an inverted frequency (in us) can be played by an initialized oMIDItone object.
+		bool can_play_freq(uint32_t freq);
+
 		//This returns the inverted frequency in microseconds that is currently playing or NO_FREQ if no note is currently playing.
 		uint16_t currently_playing_freq(void);
 
@@ -212,9 +215,6 @@ class oMIDItone {
 
 		//This is a function that will change the current_resistance to a different value if it is too far off from the current_frequency.
 		void adjust_freq(void);
-
-		//This will check if an inverted frequency (in us) can be played by an initialized oMIDItone object.
-		bool can_play_freq(uint32_t freq);
 
 		//This function will open and close the mouth based on the current note valocity
 		void servo_update(void);
