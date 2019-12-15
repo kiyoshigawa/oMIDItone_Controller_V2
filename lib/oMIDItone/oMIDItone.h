@@ -62,7 +62,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 //comment this out to disable pitch debug messages
 //this will turn on or off output messages about the frequency measurements in the measure_freq() function:
-#define PITCH_DEBUG
+//#define PITCH_DEBUG
 
 //comment this out to disable verbose frequency adjustment messages for every change in frequency
 //#define PITCH_VERBOSE_DEBUG
@@ -128,7 +128,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define NOTE_TIMEOUT 2000
 
 //If a frequency is measured at this or higher, it will stop incrementing resistances, as it's too high to measure.
-#define MAX_FREQ 300
+#define SMALLEST_VIABLE_FREQ 300
 
 //This is the address of the Adafruit PCA9685 servo controller used by all the servos on the project.
 //If yours has a different I2C adderess bit set, you will need to change it here.
@@ -197,6 +197,9 @@ class oMIDItone {
 		void enable_servos(void);
 		void disable_servos(void);
 
+		//this will return true once if a note has been dropped due to pitch correction since the last time it was run:
+		bool note_was_dropped(void);
+
 		//this stores the lighting animation info for the head:
 		Animation * animation;
 
@@ -248,10 +251,10 @@ class oMIDItone {
 		bool servo_is_enabled;
 
 		//this will be set during the startup test to the lowest inverted frequency registered.
-		uint32_t min_freq;
+		uint32_t smallest_freq;
 
 		//this will be set during the startup test to the highest inverted frequency registered.
-		uint32_t max_freq;
+		uint32_t largest_freq;
 
 		//this is an array of the most recent measured rising edge average times in us that correspond to a resistance
 		uint32_t measured_freqs[NUM_RESISTANCE_STEPS];
@@ -277,6 +280,9 @@ class oMIDItone {
 
 		//this is used to cancel a pitch correction if an event occurs that would disturb the timing
 		bool pitch_correction_has_been_compromised;
+
+		//this lets things outside the class know if a pitch correction action caused a note to be dropped.
+		bool new_note_dropped;
 
 		//pin number tracking:
 		uint16_t signal_enable_optoisolator_pin;

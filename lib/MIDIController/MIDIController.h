@@ -54,7 +54,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define MIDI_NOTE_DEBUG
 
 //uncomment this to add more info to the MIDI note debug messages, including velocity and inverted frequency
-//#define MIDI_NOTE_DEBUG_VERBOSE
+#define MIDI_NOTE_DEBUG_VERBOSE
 
 //defaults used when creating the hardware MIDI interface
 //see teensy MIDI.h library documentation for more info

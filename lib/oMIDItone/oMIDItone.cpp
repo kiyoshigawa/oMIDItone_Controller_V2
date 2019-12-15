@@ -45,8 +45,8 @@ oMIDItone::oMIDItone(uint16_t signal_enable_optoisolator, uint16_t speaker_disab
 	had_successful_init = false;
 	pitch_correction_is_enabled = FREQ_CORRECTION_DEFAULT_ENABLE_STATE;
 	servo_is_enabled = SERVO_DEFAULT_ENABLE_STATE;
-	min_freq = 1000000U; //larger than MIDI note 0 by an order of magnitude
-	max_freq = 0;
+	smallest_freq = 1000000U; //larger than MIDI note 0 by an order of magnitude
+	largest_freq = 0;
 	for(int i=0; i<NUM_RESISTANCE_STEPS; i++){
 		measured_freqs[i] = 0;
 	}
@@ -59,6 +59,7 @@ oMIDItone::oMIDItone(uint16_t signal_enable_optoisolator, uint16_t speaker_disab
 	last_analog_read = 1024;
 	current_resistance = 0;
 	pitch_correction_has_been_compromised = false;
+	new_note_dropped = false;
 
 	//set pin variables based on constructor inputs:
 	signal_enable_optoisolator_pin = signal_enable_optoisolator;
@@ -255,6 +256,15 @@ void oMIDItone::disable_servos(void)
 	servo_is_enabled = false;
 }
 
+bool oMIDItone::note_was_dropped(void){
+	if(new_note_dropped){
+		new_note_dropped = false;
+		return true;
+	} else {
+		return false;
+	}
+}
+
 /* ----- END PUBLIC FUNCTIONS ----- */
 /* ----- PRIVATE FUNCTIONS BELOW ----- */
 
@@ -329,13 +339,13 @@ bool oMIDItone::startup_test(void)
 			}
 			if(freq_reading_index >= NUM_FREQ_READINGS){
 				measured_freqs[current_resistance] = average(recent_freqs, NUM_FREQ_READINGS);
-				//This will break out of the for loop if the measured frequency is higher than MAX_FREQ (less us)
-				if(measured_freqs[current_resistance] < MAX_FREQ){
+				//This will break out of the for loop if the measured frequency is higher than SMALLEST_VIABLE_FREQ (less us)
+				if(measured_freqs[current_resistance] < SMALLEST_VIABLE_FREQ){
 					//Set resistance to a failure condition to stop iterating through the for loop.
 					resistance = NUM_RESISTANCE_STEPS;
-					//fill in the rest of the array with the MAX_FREQ to keep the rest of the code working.
+					//fill in the rest of the array with the SMALLEST_VIABLE_FREQ to keep the rest of the code working.
 					for(int i=resistance; i<NUM_RESISTANCE_STEPS-JITTER; i++){
-						measured_freqs[current_resistance] = MAX_FREQ;
+						measured_freqs[current_resistance] = SMALLEST_VIABLE_FREQ;
 					}
 				}
 
@@ -372,22 +382,22 @@ bool oMIDItone::startup_test(void)
 
 	//Set the max_note and min_note variables based on the frequencies measured:
 	for(uint16_t i = JITTER; i <= NUM_RESISTANCE_STEPS-JITTER; i++){
-		if(measured_freqs[i] > max_freq){
-			max_freq = measured_freqs[i];
+		if(measured_freqs[i] > largest_freq){
+			largest_freq = measured_freqs[i];
 		}
-		if(measured_freqs[i] < min_freq){
-			min_freq = measured_freqs[i];
+		if(measured_freqs[i] < smallest_freq){
+			smallest_freq = measured_freqs[i];
 		}
 	}
 	#ifdef OMIDITONE_DEBUG
 		Serial.print("Min Measured Freq in us: ");
-		Serial.println(min_freq);
+		Serial.println(smallest_freq);
 		Serial.print("Max Measured Freq in us: ");
-		Serial.println(max_freq);
+		Serial.println(largest_freq);
 	#endif
 
 	//if it makes it here the init was successful, and the allowable frequency range is established
-	if(min_freq <= max_freq){
+	if(smallest_freq <= largest_freq){
 		had_successful_init = true;
 	} else {
 		//only continue when the min and max note values make sense.
@@ -436,6 +446,10 @@ void oMIDItone::measure_freq(void)
 			} else {
 				recent_freqs[freq_reading_index] = last_rising_edge;
 				last_rising_edge = 0;
+				#ifdef PITCH_DEBUG
+					Serial.print("Frequency Successfully measured: ");
+					Serial.println(recent_freqs[freq_reading_index]);
+				#endif
 				freq_reading_index++;
 			}
 		} else {
@@ -481,16 +495,20 @@ void oMIDItone::adjust_freq(void)
 			if(current_resistance < JITTER){
 				//prevent the value from overflowing:
 				current_resistance = JITTER;
-				//if it's bottoming out, increase the min freq.
-				min_freq++;
+				//if it's bottoming out, increase the largest freq.
+				largest_freq = current_freq;
 				#ifdef OMIDITONE_DEBUG
 					Serial.print("Inverted frequency ");
 					Serial.print(current_freq);
-					Serial.print(" bottomed out. min_freq increased to ");
-					Serial.print(min_freq);
+					Serial.print(" bottomed out. largest_freq increased to ");
+					Serial.print(largest_freq);
 					Serial.print(" on oMIDItone on relay pin");
 					Serial.println(signal_enable_optoisolator_pin);
 				#endif
+				//stop playing the note if it bottoms out
+				current_desired_freq = NO_FREQ;
+				//set the new_note_dropped flag:
+				new_note_dropped = true;
 			}
 			last_adjust_time = 0;
 			#ifdef PITCH_VERBOSE_DEBUG
@@ -505,16 +523,20 @@ void oMIDItone::adjust_freq(void)
 			if(current_resistance > (NUM_RESISTANCE_STEPS-JITTER)){
 				//prevent the value from overflowing:
 				current_resistance = NUM_RESISTANCE_STEPS-JITTER;
-				//if it's topping out, reduce the max freq:
-				max_freq--;
+				//if it's topping out, reduce the smallest freq:
+				smallest_freq = current_freq;
 				#ifdef OMIDITONE_DEBUG
 					Serial.print("Inverted frequency ");
 					Serial.print(current_freq);
-					Serial.print("is too high for reliable use. max_freq decreased to ");
-					Serial.print(max_freq);
+					Serial.print("is too high for reliable use. largest_freq decreased to ");
+					Serial.print(smallest_freq);
 					Serial.print("on oMIDItone on relay pin");
 					Serial.println(signal_enable_optoisolator_pin);
 				#endif
+				//stop playing the note if it topped out
+				current_desired_freq = NO_FREQ;
+				//set the new_note_dropped flag:
+				new_note_dropped = true;
 			}
 			last_adjust_time = 0;
 			#ifdef PITCH_VERBOSE_DEBUG
@@ -536,7 +558,7 @@ bool oMIDItone::can_play_freq(uint32_t freq)
 	if(freq == NO_FREQ){
 		return false;
 	}
-	if(freq < max_freq && freq > min_freq){
+	if(freq < largest_freq && freq > smallest_freq){
 		return true;
 	}
 	return false;

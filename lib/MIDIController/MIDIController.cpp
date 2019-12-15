@@ -117,8 +117,7 @@ bool MIDIController::note_was_added(void)
 		//reset to false whenever this is called to avoid getting stuck in a tune request loop
 		new_note_added = false;
 		return true;
-	}
-	else{
+	} else {
 		return false;
 	}
 }
@@ -129,8 +128,7 @@ bool MIDIController::note_was_changed(void)
 		//reset to false whenever this is called to avoid getting stuck in a tune request loop
 		new_note_changed = false;
 		return true;
-	}
-	else{
+	} else {
 		return false;
 	}
 }
@@ -141,8 +139,7 @@ bool MIDIController::note_was_removed(void)
 		//reset to false whenever this is called to avoid getting stuck in a tune request loop
 		new_note_removed = false;
 		return true;
-	}
-	else{
+	} else {
 		return false;
 	}
 }
@@ -153,8 +150,7 @@ bool MIDIController::cc_was_changed(void)
 		//reset to false whenever this is called to avoid getting stuck in a tune request loop
 		new_cc_message = false;
 		return true;
-	}
-	else{
+	} else {
 		return false;
 	}
 }
@@ -165,8 +161,7 @@ bool MIDIController::program_mode_was_changed(void)
 		//reset to false whenever this is called to avoid getting stuck in a tune request loop
 		new_program_mode = false;
 		return true;
-	}
-	else{
+	} else {
 		return false;
 	}
 }
@@ -176,8 +171,7 @@ bool MIDIController::tune_request_was_received(void){
 		//reset to false whenever this is called to avoid getting stuck in a tune request loop
 		new_tune_request = false;
 		return true;
-	}
-	else{
+	} else {
 		return false;
 	}
 }
@@ -188,8 +182,7 @@ bool MIDIController::system_reset_request_was_received(void)
 		//reset to false whenever this is called to avoid getting stuck in a tune request loop
 		new_system_reset_request = false;
 		return true;
-	}
-	else{
+	} else {
 		return false;
 	}
 }
