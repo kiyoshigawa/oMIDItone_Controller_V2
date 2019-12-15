@@ -128,7 +128,7 @@ void oMIDItone::init(void)
 	//set up ADC:
 	adc->setAveraging(0);
 	adc->setResolution(8);
-	adc->setConversionSpeed(ADC_CONVERSION_SPEED::VERY_HIGH_SPEED);
+	adc->setConversionSpeed(ADC_CONVERSION_SPEED::HIGH_SPEED);
 	adc->setSamplingSpeed(ADC_SAMPLING_SPEED::VERY_HIGH_SPEED);
 
 	//turn off relay and all CS pins
@@ -408,6 +408,7 @@ void oMIDItone::set_freq(uint32_t freq)
 {
 	//set the current_note:
 	current_desired_freq = freq;
+	freq_reading_index = 0;
 	//set the averaging function to the new frequency in anticipation of the change:
 	for(int i=0; i<NUM_FREQ_READINGS; i++){
 		recent_freqs[i] = current_desired_freq;
@@ -435,10 +436,6 @@ void oMIDItone::measure_freq(void)
 			} else {
 				recent_freqs[freq_reading_index] = last_rising_edge;
 				last_rising_edge = 0;
-				#ifdef PITCH_DEBUG
-					Serial.print("Frequency Successfully measured: ");
-					Serial.println(recent_freqs[freq_reading_index]);
-				#endif
 				freq_reading_index++;
 			}
 		} else {
@@ -451,18 +448,18 @@ void oMIDItone::measure_freq(void)
 			#endif
 		}
 	}
-	if(freq_reading_index >= NUM_FREQ_READINGS && current_freq != NO_FREQ){
-		freq_reading_index = 0;
-		/*
+	if(freq_reading_index >= NUM_FREQ_READINGS){
 		//calculate a new average frequency
 		current_freq = average(recent_freqs, NUM_FREQ_READINGS);
 		//and reset the counter
+		freq_reading_index = 0;
 		//only when you've had a valid reading should the frequency be adjusted
-		adjust_freq();
+		if(current_desired_freq != NO_FREQ){
+			adjust_freq();
+		}
 		//also update the measured_freqs array to be correct for the current resistasnce.
 		//TIM: Leaving this commented out for now, seems to prevent drifting over time, but requires occasional hard resets
 		//measured_freqs[current_resistance] = current_freq;
-		*/
 	}
 }
 
@@ -547,7 +544,7 @@ bool oMIDItone::can_play_freq(uint32_t freq)
 
 void oMIDItone::servo_update(void)
 {
-	//If the current_freq is not NO_FREQ, open the mouth to the max position:
+	//If the current_desired_freq is not NO_FREQ, open the mouth to the max position:
 	if(current_desired_freq != NO_FREQ){
 		servo_controller.setPWM(l_channel, 0, l_max);
 		servo_controller.setPWM(r_channel, 0, r_max);
@@ -562,8 +559,8 @@ void oMIDItone::servo_update(void)
 
 bool oMIDItone::is_rising_edge(void)
 {
-	uint16_t current_analog_read = adc->analogRead(analog_feedback_pin);
 	if(last_rising_edge > MIN_TIME_BETWEEN_RISING_EDGE_MEASUREMENTS){
+	uint16_t current_analog_read = adc->analogRead(analog_feedback_pin);
 		if( current_analog_read > RISING_EDGE_THRESHOLD && last_analog_read < RISING_EDGE_THRESHOLD){
 			last_analog_read = current_analog_read;
 			return true;

@@ -99,7 +99,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 #define UNREASONABLY_LARGE_MULTIPLIER 2
 
 //this is to make sure that the rising edge isn't measured too often (in us):
-#define MIN_TIME_BETWEEN_RISING_EDGE_MEASUREMENTS 2
+#define MIN_TIME_BETWEEN_RISING_EDGE_MEASUREMENTS 1
 
 //Time to wait between receiving a note and starting to play that note (in ms).
 #define NOTE_WAIT_TIME 10

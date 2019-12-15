@@ -743,8 +743,6 @@ void pending_head_order_to_end(uint8_t head_number)
 	}
 }
 
-elapsedMillis test_timing_value_1;
-elapsedMillis test_timing_value_2;
 //this iterates through the MIDIController's current note array and assign heads to play the notes
 void update_oMIDItones(void)
 {
@@ -765,7 +763,7 @@ void update_oMIDItones(void)
 	//TIM: figure out a sane way to assign notes to heads
 	//keep in mind notes can be added, removed, or changed
 	//and different actions will be needed for each of these options.
-	/*
+
 	bool note_was_added = mc.note_was_added();
 	bool note_was_changed = mc.note_was_changed();
 	bool note_was_removed = mc.note_was_removed();
@@ -854,14 +852,6 @@ void update_oMIDItones(void)
 				break;
 			}
 		}
-	}
-	*/
-	if(mc.num_current_notes > 0){
-		if(mc.note_was_added()){
-			oms[1].play_freq(A440_midi_freqs[60]);
-		}
-	} else {
-		oms[1].sound_off();
 	}
 	//update all heads every time
 	for(int h=0; h<NUM_OMIDITONES; h++){
