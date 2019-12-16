@@ -47,7 +47,7 @@ uint32_t free_mem(){ // for Teensy 3.0
 #define OMIDITONE_DEBUG
 
 //This will turn on/off the debug note messages when notes are added or removed via MIDI
-#define NOTE_DEBUG
+//#define NOTE_DEBUG
 
 //defines to make the head selection code more readable:
 #define AVAILABLE true
@@ -762,11 +762,7 @@ void update_oMIDItones(void)
 		_softRestart();
 	}
 
-	//Now we need to handle notes messages:
-	//TIM: figure out a sane way to assign notes to heads
-	//keep in mind notes can be added, removed, or changed
-	//and different actions will be needed for each of these options.
-
+	//get the initial status for note changes:
 	bool note_was_added = mc.note_was_added();
 	bool note_was_changed = mc.note_was_changed();
 	bool note_was_removed = mc.note_was_removed();
@@ -857,6 +853,13 @@ void update_oMIDItones(void)
 						//otherwise they will all try to play the same note.
 						break;
 					} //end if head is available
+					//in case no head could play the note, output debug
+					if(h == 5){
+						#ifdef NOTE_DEBUG
+							Serial.print("No head for note: ");
+							Serial.println(mc.current_notes[n].note);
+						#endif
+					}
 				}//end if can play freq
 			}//end head for loop
 			//if all heads are assigned, break the note for loop:

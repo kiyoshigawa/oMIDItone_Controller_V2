@@ -500,9 +500,7 @@ void oMIDItone::adjust_freq(void)
 				#ifdef OMIDITONE_DEBUG
 					Serial.print("Inverted frequency ");
 					Serial.print(current_freq);
-					Serial.print(" bottomed out. largest_freq increased to ");
-					Serial.print(largest_freq);
-					Serial.print(" on oMIDItone on relay pin");
+					Serial.print(" bottomed out on oMIDItone on relay pin");
 					Serial.println(signal_enable_optoisolator_pin);
 				#endif
 				//stop playing the note if it bottoms out
@@ -523,14 +521,13 @@ void oMIDItone::adjust_freq(void)
 			if(current_resistance > (NUM_RESISTANCE_STEPS-JITTER)){
 				//prevent the value from overflowing:
 				current_resistance = NUM_RESISTANCE_STEPS-JITTER;
-				//if it's topping out, reduce the smallest freq:
-				smallest_freq = current_freq;
+				//TIM: Disabled this because it was wrong often enough to detune the whole thing after a few incidents.
+				//the oMIDItone rarely drifts too high anyway, so it sounds better with this off.
+				//smallest_freq = current_freq;
 				#ifdef OMIDITONE_DEBUG
 					Serial.print("Inverted frequency ");
 					Serial.print(current_freq);
-					Serial.print("is too high for reliable use. largest_freq decreased to ");
-					Serial.print(smallest_freq);
-					Serial.print("on oMIDItone on relay pin");
+					Serial.print(" topped out on oMIDItone on relay pin ");
 					Serial.println(signal_enable_optoisolator_pin);
 				#endif
 				//stop playing the note if it topped out

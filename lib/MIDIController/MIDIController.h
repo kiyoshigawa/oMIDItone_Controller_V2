@@ -36,25 +36,25 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 //#define MIDI_DEBUG_IGNORED
 
 //uncomment this to get debug messages about MIDI Aftertouch
-#define MIDI_DEBUG_AFTERTOUCH
+//#define MIDI_DEBUG_AFTERTOUCH
 
 //uncomment this to get debug messages about MIDI Pitch Bends
-#define MIDI_DEBUG_PITCH_BEND
+//#define MIDI_DEBUG_PITCH_BEND
 
 //uncomment this to get debug messages about MIDI program and system messages
-#define MIDI_DEBUG_SYSTEM
+//#define MIDI_DEBUG_SYSTEM
 
 //uncomment this to get debug messages about MIDI CC messages from the default handlers
-#define MIDI_DEBUG_CC
+//#define MIDI_DEBUG_CC
 
 //uncomment this to get debug messages about RPN handling from the default handlers
-#define MIDI_DEBUG_RPN
+//#define MIDI_DEBUG_RPN
 
 //uncomment this to get printouts of the current note array every time a note is added or removed
-#define MIDI_NOTE_DEBUG
+//#define MIDI_NOTE_DEBUG
 
 //uncomment this to add more info to the MIDI note debug messages, including velocity and inverted frequency
-#define MIDI_NOTE_DEBUG_VERBOSE
+//#define MIDI_NOTE_DEBUG_VERBOSE
 
 //defaults used when creating the hardware MIDI interface
 //see teensy MIDI.h library documentation for more info
