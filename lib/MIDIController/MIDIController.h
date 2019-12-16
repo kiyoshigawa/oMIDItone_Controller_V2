@@ -507,12 +507,12 @@ class MIDIController{
 		//This is an array that has converted the midi_freqs_Hz array into an array of integers representing us between rising edges for the note frequencies
 		//These can be modified upon receipt of tuning requests from MIDI RPn commands. 
 		//They will always be the current modified note frequency reference for that channel during operation.
-		//TIM: due to memory limits on the Teensy 3.2, I will only support tuning on one channel
-		//If you ever update to a chip with more RAM, then re-implement channels for these functions.
-		//the rest of the code should be ready to go, I've got a commented out line below everywhere this variable is used 
-		//that should be a drop-in replacement making per-channel tuning functional once the RAM is there for it.
-		uint32_t midi_freqs[NUM_MIDI_NOTES];
-		//uint32_t midi_freqs[NUM_MIDI_CHANNELS][NUM_MIDI_NOTES];
+		
+		//Currently supporting per-channel tuning on the Teensy 3.1 with this code base.
+		//If you are running out of RAM, I've got a commented out line above everywhere this variable is used 
+		//that should be a drop-in replacement disabling per-channel tuning and going to a single global tuning
+		//uint32_t midi_freqs[NUM_MIDI_NOTES];
+		uint32_t midi_freqs[NUM_MIDI_CHANNELS][NUM_MIDI_NOTES];
 	private:
 		//this will handle the hardware MIDI messages and usbMIDI messages 
 		void process_MIDI(void);
