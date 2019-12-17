@@ -56,6 +56,10 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 //uncomment this to add more info to the MIDI note debug messages, including velocity and inverted frequency
 //#define MIDI_NOTE_DEBUG_VERBOSE
 
+//uncomment this to disable per-channel tuning to save on memory usage of the controller
+//uncommenting this flag will save approximately 7.6k of RAM
+//#define MIDI_FORCE_GLOBAL_TUNING
+
 //defaults used when creating the hardware MIDI interface
 //see teensy MIDI.h library documentation for more info
 #define HARDWARE_MIDI_TYPE HardwareSerial
@@ -511,8 +515,11 @@ class MIDIController{
 		//Currently supporting per-channel tuning on the Teensy 3.1 with this code base.
 		//If you are running out of RAM, I've got a commented out line above everywhere this variable is used 
 		//that should be a drop-in replacement disabling per-channel tuning and going to a single global tuning
-		//uint32_t midi_freqs[NUM_MIDI_NOTES];
-		uint32_t midi_freqs[NUM_MIDI_CHANNELS][NUM_MIDI_NOTES];
+		#ifdef MIDI_FORCE_GLOBAL_TUNING
+			uint32_t midi_freqs[NUM_MIDI_NOTES];
+		#else
+			uint32_t midi_freqs[NUM_MIDI_CHANNELS][NUM_MIDI_NOTES];
+		#endif
 	private:
 		//this will handle the hardware MIDI messages and usbMIDI messages 
 		void process_MIDI(void);

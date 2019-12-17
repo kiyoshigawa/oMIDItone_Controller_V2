@@ -934,8 +934,11 @@ void MIDIController::handle_rpn_fine_tuning(uint8_t channel, uint16_t new_value)
 	//processing power on calculations.
 	if(adjusted_value == MIDI_CENTER_FINE_TUNING && coarse_tuning_offsets[channel] == MIDI_CENTER_COARSE_TUNING){
 		for(int n=0; n<NUM_MIDI_NOTES; n++){
-			//midi_freqs[n] = A440_midi_freqs[n];
-			midi_freqs[channel][n] = A440_midi_freqs[n];
+			#ifdef MIDI_FORCE_GLOBAL_TUNING
+				midi_freqs[n] = A440_midi_freqs[n];
+			#else
+				midi_freqs[channel][n] = A440_midi_freqs[n];
+			#endif
 		}
 		#ifdef MIDI_DEBUG_RPN
 			Serial.print("Fine tuning reset to A=440Hz: ");
@@ -965,8 +968,11 @@ void MIDIController::handle_rpn_coarse_tuning(uint8_t channel, uint16_t new_valu
 	//processing power on calculations.
 	if(coarse_tuning_offsets[channel] == MIDI_CENTER_FINE_TUNING && fine_tuning_offsets[channel] == MIDI_CENTER_FINE_TUNING){
 		for(int n=0; n<NUM_MIDI_NOTES; n++){
-			//midi_freqs[n] = A440_midi_freqs[n];
-			midi_freqs[channel][n] = A440_midi_freqs[n];
+			#ifdef MIDI_FORCE_GLOBAL_TUNING
+				midi_freqs[n] = A440_midi_freqs[n];
+			#else
+				midi_freqs[channel][n] = A440_midi_freqs[n];
+			#endif
 		}
 		#ifdef MIDI_DEBUG_RPN
 			Serial.print("Coarse tuning reset to A=440Hz: ");
@@ -1078,8 +1084,11 @@ void MIDIController::reset_to_default(void)
 		}
 		//init the midi_freqs array
 		for(int i=0; i<NUM_MIDI_NOTES; i++){
-			//midi_freqs[i] = A440_midi_freqs[i];
-			midi_freqs[c][i] = A440_midi_freqs[i];
+			#ifdef MIDI_FORCE_GLOBAL_TUNING
+				midi_freqs[i] = A440_midi_freqs[i];
+			#else
+				midi_freqs[c][i] = A440_midi_freqs[i];
+			#endif
 		}
 	}
 }
@@ -1173,8 +1182,11 @@ int8_t MIDIController::check_note(uint8_t channel, uint8_t note)
 uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 {
 	if(current_pitch_bends[channel] == MIDI_CENTER_PITCH_BEND){
-		//return midi_freqs[note];
-		return midi_freqs[channel][note];
+		#ifdef MIDI_FORCE_GLOBAL_TUNING
+			return midi_freqs[note];
+		#else
+			return midi_freqs[channel][note];
+		#endif
 	} else {
 		//this takes the pitch_bend and maps it to the corresponding number of cents
 		int32_t pitch_bend_offset = map(
@@ -1198,8 +1210,11 @@ uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 
 		//the inflated_ratio is the frequency times the frequency adjustment ratio 2^(cents/1200) times 1,000,000.
 		//this is multiplied by 1,000,000 so we can use integer math instead of floating point math to make things speedier
-		//uint64_t inflated_ratio = (uint64_t)midi_freqs[adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
-		uint64_t inflated_ratio = (uint64_t)midi_freqs[channel][adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
+		#ifdef MIDI_FORCE_GLOBAL_TUNING
+			uint64_t inflated_ratio = (uint64_t)midi_freqs[adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
+		#else
+			uint64_t inflated_ratio = (uint64_t)midi_freqs[channel][adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
+		#endif
 		//and we need to divide by 1,000,000 to cancel out the inflation above to get the actual frequency we desire.
 		return inflated_ratio/CENT_FREQUENCY_RATIO_MULTIPLIER;
 	}
@@ -1224,8 +1239,11 @@ void MIDIController::recalculate_midi_freqs(uint8_t channel, int16_t offset){
 		double converted_note_freq_Hz = adjusted_A_freq_Hz*pow(2, (n-69)/12);
 		//finally we convert from the actual frequency in Hz to the inverted
 		//frequency in us used by the rest of the code base and assign the value
-		//midi_freqs[n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
-		midi_freqs[channel][n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
+		#ifdef MIDI_FORCE_GLOBAL_TUNING
+			midi_freqs[n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
+		#else
+			midi_freqs[channel][n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
+		#endif
 	}
 }
 
