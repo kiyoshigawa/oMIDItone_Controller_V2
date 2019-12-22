@@ -105,24 +105,6 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
  */
 
 #include <Arduino.h>
-
-//TIM: remove this function once all the crashing is figured out.
-uint32_t free_mem(){ // for Teensy 3.0
-    uint32_t stackTop;
-    uint32_t heapTop;
-
-    // current position of the stack.
-    stackTop = (uint32_t) &stackTop;
-
-    // current position of heap.
-    void* hTop = malloc(1);
-    heapTop = (uint32_t) hTop;
-    free(hTop);
-
-    // The difference is (approximately) the free, available ram.
-    return stackTop - heapTop;
-}
-
 #include <ADC.h>
 #include <Adafruit_NeoPixel.h>
 #include <colors.h>
