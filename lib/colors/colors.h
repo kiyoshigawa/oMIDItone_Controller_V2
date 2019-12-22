@@ -2,6 +2,7 @@
 This is a quick library that provides some commonly used functions for using 
 32bit colors like in the Adafruit_NeoPixel library. I also have a bunch of
 standard color definitions and an array of rainbows for use in lighting projects
+with my lighting controller class.
 
 Copyright 2019 - kiyoshigawa - tim@twa.ninja
 

@@ -1,9 +1,80 @@
 /*
 This is a lighting control object built for WS2812 strips using the Adafruit 
-Neopixel library.
-It's mostly just a wrapper around a bunch of common lighting functions I've used 
-in my projects in the past to make it more general and easier to insert into 
-other projects.
+Neopixel library. The goal of this class is to allow for simple-to-use
+animations to be added to a project on any arbitrary subset of a WS2812 LED
+strip.
+
+When setting up this lighting controller, the first thing needed will be a strip
+of WS2812 RGB leds. You will need to create an Adafruit_NeoPixel object that
+controls the entire LED strip, which will end up being used by the lighting
+controller to display the animations you create.
+
+The workflor for the lighting controller is as follows:
+	1. You create one or more animation objects that will work for some or all 
+		of the LEDs on the Adafruit_Neopixel Strip.
+	2. You create a lighting controller for running add the animation objects to 
+		the lighting controller object and then	init the lighting controller.
+	3. You regularly call the lighting controller update() function to run the 
+		animations that are on the lighting controller object.
+	4. (Optional) You can also call trigger events that will run on the 
+		animation object using the trigger_event() function at any time while
+		the animations are running and the lighting controller is being updated.
+
+In order to make a new animation, you need to define several parameters. All of
+these can be changed at any time except the led_array, the number of LEDs on the
+animation, and the update interval.
+
+Animation Parameters:
+1. led_array and num_leds:
+	This is a subset of the LEDs in the Adafruit_NeoPixel object. It is an array
+	that notes the position of the LEDs in the order you want them to be in for
+	the animation. For instance, if you had a NeoPixel strip with 12 LEDs, but 
+	only wanted to animate on the last 6 LEDs in reverse order, the led_array 
+	would be {11, 10, 9, 8, 7, 6}, and num_leds would be 6.
+2. lighting mode:
+	This is a value that tells the controller what type of animation to run. If
+	you look at the enums lm_bg and lm_fg you will get a description of the 
+	lighting modes below. You can combine any foreground and background 
+	animation together with a bitwise or operation. For instance, if you wanted
+	your animation to have a slow rotating rainbow background with a slow fading 
+	marquee forground, the lighting mode argument would be:
+		lm_bg::rainbow_slow_rotate | lm_fg::marquee_slow_rotate
+3. rainbows:
+	When running animations, the colors are selected from a rainbow object based
+	on the animation type. You will need to select a rainbow for all three of:
+		The Background Rainbow,
+		The Foreground Rainbow, and
+		The Trigger Animation Rainbow.
+	The animation type will determine how the rainbow colors are used. See below
+	in the enum definitions of the lighting modes for a description of what the 
+	different modes do with the rainbows. In all cases, rainbows will be cycled
+	through from the first color to the last color and then back to the first.
+	There are several rainbows defined in the colors.h library that can be used 
+	with this library, and you can also define your own rainbows with any colors
+	in any order you want.
+4. update interval: 
+	This limits the number of times the update function actually runs. All 
+	animations are controlled by a frame rate that is determined by this 
+	variable. If you make the number smaller, the animations will update more 
+	often. This can cause issues if the number is too small. Each LED in the 
+	Adafruit_NeoPixel object will take approximately 30us to update, so if you 
+	have an LED strip with 100 pixels, it will take ~3ms to update the LEDs to 
+	their new colors. If you have a lot of other code running on your board, you
+	can spend all your time updating LEDs and very little time running the rest 
+	of your code if you are not careful. I recommend keeping this value around 
+	16ms (approximately 60Hz) as an absolute minimum, or 33ms (~30Hz) if your
+	animations look alright at that rate.
+	Note that this value also changes the speed animations update at. A slow 
+	fade is always going to take LC_SLOW_FADE_FRAMES to change from one rainbow
+	color to the next, so changing the refresh rate also makes animations 
+	faster. You may need to adjust the #defines below to make your animation
+	timing work well for your application.
+
+You can change the lighting modes or trigger events once the animation object is
+assigned to a lighting controller and the lighting controller is being regularly
+updated. You can also add or remove animations from the lighting controller at
+will. See the public function definitions for more info on how to change and 
+update both animations and how to add or remove animations from the controller.
 
 Copyright 2019 - kiyoshigawa - tim@twa.ninja
 */
