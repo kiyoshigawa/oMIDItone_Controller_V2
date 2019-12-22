@@ -993,7 +993,7 @@ void MIDIController::handle_rpn_coarse_tuning(uint8_t channel, uint16_t new_valu
 
 void MIDIController::handle_rpn_tuning_program_change(uint8_t channel, uint16_t new_value)
 {
-	//TIM: make this work
+	//TODO: make this work - add user-function support
 	#ifdef MIDI_DEBUG_RPN
 		Serial.print("Tuning Program Change: ");
 		Serial.print(channel);
@@ -1004,7 +1004,7 @@ void MIDIController::handle_rpn_tuning_program_change(uint8_t channel, uint16_t 
 
 void MIDIController::handle_rpn_tuning_bank_select(uint8_t channel, uint16_t new_value)
 {
-	//TIM: make this work
+	//TODO: make this work - add user-function support
 	#ifdef MIDI_DEBUG_RPN
 		Serial.print("Tuning Bank Select: ");
 		Serial.print(channel);
@@ -1015,7 +1015,7 @@ void MIDIController::handle_rpn_tuning_bank_select(uint8_t channel, uint16_t new
 
 void MIDIController::handle_rpn_modulation_depth_range(uint8_t channel, uint16_t new_value)
 {
-	//TIM: make this work
+	//TODO: make this work - add user-function support
 	#ifdef MIDI_DEBUG_RPN
 		Serial.print("Modulation Depth Range: ");
 		Serial.print(channel);
@@ -1026,7 +1026,7 @@ void MIDIController::handle_rpn_modulation_depth_range(uint8_t channel, uint16_t
 
 void MIDIController::handle_rpn_MPE_configuration_message(uint8_t channel, uint16_t new_value)
 {
-	//TIM: make this work
+	//TODO: make this work - add user-function support
 	#ifdef MIDI_DEBUG_RPN
 		Serial.print("MPE Configuration Message");
 		Serial.print(channel);

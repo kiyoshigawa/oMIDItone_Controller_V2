@@ -472,7 +472,7 @@ void oMIDItone::measure_freq(void)
 			adjust_freq();
 		}
 		//also update the measured_freqs array to be correct for the current resistasnce.
-		//TIM: Leaving this commented out for now, seems to prevent drifting over time, but requires occasional hard resets
+		//Leaving this commented out for now, seems to prevent drifting over time, but requires occasional hard resets
 		//measured_freqs[current_resistance] = current_freq;
 	}
 }
@@ -521,9 +521,8 @@ void oMIDItone::adjust_freq(void)
 			if(current_resistance > (OM_NUM_RESISTANCE_STEPS-OM_JITTER)){
 				//prevent the value from overflowing:
 				current_resistance = OM_NUM_RESISTANCE_STEPS-OM_JITTER;
-				//TIM: Disabled this because it was wrong often enough to detune the whole thing after a few incidents.
-				//the oMIDItone rarely drifts too high anyway, so it sounds better with this off.
-				//smallest_freq = current_freq;
+				//if it's topping out, decrease the largest freq.
+				smallest_freq = current_freq;
 				#ifdef OM_DEBUG
 					Serial.print("Inverted frequency ");
 					Serial.print(current_freq);
