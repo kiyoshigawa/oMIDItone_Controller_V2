@@ -33,7 +33,7 @@ MIDI_CREATE_INSTANCE(HARDWARE_MIDI_TYPE, HARDWARE_MIDI_INTERFACE, MIDI);
 //they can be overridden from the default values shown here by setting a new 
 //function pointer using the assign_midi_cc_handler() function.
 extern "C"{
-cc_handler_pointer midi_cc_handler_function_array[NUM_MIDI_CC_TYPES];
+cc_handler_pointer midi_cc_handler_function_array[MIDI_NUM_CC_TYPES];
 
 //these are the function pointers to RPN values. They can be assigned using the 
 //assign_midi_*_pointer() functions that match the names below.
@@ -46,7 +46,7 @@ rpn_handler_pointer midi_rpn_relative_handler_function_pointer;
 MIDIController::MIDIController(void)
 {
 	//init the pointers for the MIDI CC handlers to null on creation
-	for(int i=0; i<NUM_MIDI_CC_TYPES; i++){
+	for(int i=0; i<MIDI_NUM_CC_TYPES; i++){
 		midi_cc_handler_function_array[i] = NULL;
 	}
 
@@ -103,7 +103,7 @@ void MIDIController::assign_midi_nrpn_relative_handler(rpn_handler_pointer fptr)
 void MIDIController:: set_omni_off_receive_channel(uint8_t channel)
 {
 	//validity check:
-	if(channel < NUM_MIDI_CHANNELS){
+	if(channel < MIDI_NUM_CHANNELS){
 		omni_off_receive_channel = channel;
 	} else {
 		//set to default on invalid input:
@@ -897,11 +897,11 @@ void MIDIController::handle_rpn_pitch_bend_sensitivity(uint8_t channel, uint16_t
 	//isolate the least significant 7 bits
 	uint8_t cents = new_value & 0x7F;
 	//sanitize inputs for use based on controller default max settings
-	if(semitones > MAX_PITCH_BEND_SEMITONES){
-		semitones = MAX_PITCH_BEND_SEMITONES;
+	if(semitones > MIDI_MAX_PITCH_BEND_SEMITONES){
+		semitones = MIDI_MAX_PITCH_BEND_SEMITONES;
 	}
-	if(cents > MAX_PITCH_BEND_CENTS){
-		cents = MAX_PITCH_BEND_CENTS;
+	if(cents > MIDI_MAX_PITCH_BEND_CENTS){
+		cents = MIDI_MAX_PITCH_BEND_CENTS;
 	}
 	//set the controller's pitch bend 
 	max_pitch_bend_offsets[channel] = semitones*100 + cents;
@@ -928,12 +928,12 @@ void MIDIController::handle_rpn_fine_tuning(uint8_t channel, uint16_t new_value)
 	//we will need to calculate new frequencies based on the adjusted_value.
 	//this value ranges from -8192 to 8191, and correspeonds to a frequency
 	//offset of -99 to +99 cents.
-	fine_tuning_offsets[channel] = map(adjusted_value, -MIDI_OFFSET_FINE_TUNING, MIDI_OFFSET_FINE_TUNING-1, -MAX_PITCH_BEND_CENTS, MAX_PITCH_BEND_CENTS);
+	fine_tuning_offsets[channel] = map(adjusted_value, -MIDI_OFFSET_FINE_TUNING, MIDI_OFFSET_FINE_TUNING-1, -MIDI_MAX_PITCH_BEND_CENTS, MIDI_MAX_PITCH_BEND_CENTS);
 	//in the simplest case where the offsets are 0, we can just use the 
 	//A440_midi_freqs[] array to fill in the default values without spending
 	//processing power on calculations.
 	if(adjusted_value == MIDI_CENTER_FINE_TUNING && coarse_tuning_offsets[channel] == MIDI_CENTER_COARSE_TUNING){
-		for(int n=0; n<NUM_MIDI_NOTES; n++){
+		for(int n=0; n<MIDI_NUM_NOTES; n++){
 			#ifdef MIDI_FORCE_GLOBAL_TUNING
 				midi_freqs[n] = A440_midi_freqs[n];
 			#else
@@ -967,7 +967,7 @@ void MIDIController::handle_rpn_coarse_tuning(uint8_t channel, uint16_t new_valu
 	//A440_midi_freqs[] array to fill in the default values without spending
 	//processing power on calculations.
 	if(coarse_tuning_offsets[channel] == MIDI_CENTER_FINE_TUNING && fine_tuning_offsets[channel] == MIDI_CENTER_FINE_TUNING){
-		for(int n=0; n<NUM_MIDI_NOTES; n++){
+		for(int n=0; n<MIDI_NUM_NOTES; n++){
 			#ifdef MIDI_FORCE_GLOBAL_TUNING
 				midi_freqs[n] = A440_midi_freqs[n];
 			#else
@@ -1062,17 +1062,17 @@ void MIDIController::reset_to_default(void)
 	omni_off_receive_channel = MIDI_DEFAULT_RECEIVE_CHANNEL;
 	local_control_is_enabled = MIDI_DEFAULT_LOCAL_CONTROL_STATE;
 	last_rpn_nrpn_type = MIDI_RPN_NULL;
-	//init things in arrays NUM_MIDI_CHANNELS long:
-	for(int c=0; c<NUM_MIDI_CHANNELS; c++){
-		current_channel_aftertouches[c] = NO_NOTE; //this doesn't mater, it's just a placeholder. It will only effect currently playing notes
+	//init things in arrays MIDI_NUM_CHANNELS long:
+	for(int c=0; c<MIDI_NUM_CHANNELS; c++){
+		current_channel_aftertouches[c] = MIDI_NO_NOTE; //this doesn't mater, it's just a placeholder. It will only effect currently playing notes
 		current_pitch_bends[c] = 0;
 		current_program_modes[c] = 0; //0 is the default program mode per the MIDI spec
-		max_pitch_bend_offsets[c] = DEFAULT_MIDI_PITCH_BEND_SEMITONES*100 + DEFAULT_MIDI_PITCH_BEND_CENTS;
+		max_pitch_bend_offsets[c] = MIDI_DEFAULT_PITCH_BEND_SEMITONES*100 + MIDI_DEFAULT_PITCH_BEND_CENTS;
 		fine_tuning_offsets[c] = MIDI_CENTER_FINE_TUNING;
 		coarse_tuning_offsets[c] = MIDI_CENTER_COARSE_TUNING;
-		//init the CC array to a default of NO_NOTE for all CC to indicate that it has not yet been set
-		for(int i=0; i<NUM_MIDI_CC_TYPES; i++){
-			current_cc_values[c][1] = NO_NOTE;
+		//init the CC array to a default of MIDI_NO_NOTE for all CC to indicate that it has not yet been set
+		for(int i=0; i<MIDI_NUM_CC_TYPES; i++){
+			current_cc_values[c][1] = MIDI_NO_NOTE;
 		}
 		//init the RPN 0 Array:
 		for(int i=0; i<MIDI_NUM_RPN_0; i++){
@@ -1083,7 +1083,7 @@ void MIDIController::reset_to_default(void)
 			rpn_3d_values[c][i] = 0; //0 is the default per MIDI specs
 		}
 		//init the midi_freqs array
-		for(int i=0; i<NUM_MIDI_NOTES; i++){
+		for(int i=0; i<MIDI_NUM_NOTES; i++){
 			#ifdef MIDI_FORCE_GLOBAL_TUNING
 				midi_freqs[i] = A440_midi_freqs[i];
 			#else
@@ -1096,15 +1096,15 @@ void MIDIController::reset_to_default(void)
 void MIDIController::add_note(uint8_t channel, uint8_t note, uint8_t velocity)
 {
 	//first verify that the note values make sense
-	uint8_t max_notes = MAX_CONCURRENT_MIDI_NOTES;
+	uint8_t max_notes = MIDI_MAX_CONCURRENT_NOTES;
 	if(!poly_mode_is_enabled && num_mono_voices != 0){
 		//set the max number of notes based on the mono mode settings
 		max_notes = num_mono_voices;
 	}
-	if(num_current_notes < max_notes && note < NUM_MIDI_NOTES){
+	if(num_current_notes < max_notes && note < MIDI_NUM_NOTES){
 		int8_t note_position = check_note(channel, note);
 		//if the note isn't already in the array, put it at the end of the array.
-		if(note_position == NOT_IN_ARRAY){
+		if(note_position == MIDI_NOT_IN_ARRAY){
 			num_current_notes++;
 			current_notes[num_current_notes-1].channel = channel;
 			current_notes[num_current_notes-1].note = note;
@@ -1125,7 +1125,7 @@ void MIDIController::add_note(uint8_t channel, uint8_t note, uint8_t velocity)
 	} else {
 		int8_t note_position = check_note(channel, note);
 		//if the note isn't already in the array, put it at the end of the array.
-		if(note_position == NOT_IN_ARRAY){
+		if(note_position == MIDI_NOT_IN_ARRAY){
 			//we need to shift every note down and put the new note on the end in this case.
 			//the end result is that the oldest note is gone forever, and only the most current max_notes notes remain in the array.
 			for(int i=0; i<num_current_notes; i++){
@@ -1147,7 +1147,7 @@ void MIDIController::rm_note(uint8_t channel, uint8_t note)
 {
 	int8_t note_position = check_note(channel, note);
 	//if the note is in the note array, remove it and bend down any other notes.
-	if(note_position != NOT_IN_ARRAY){
+	if(note_position != MIDI_NOT_IN_ARRAY){
 		for(int i=note_position; i<num_current_notes; i++){
 			current_notes[i] = current_notes[i+1];
 		}
@@ -1167,15 +1167,15 @@ int8_t MIDIController::check_note(uint8_t channel, uint8_t note)
 {
 	//Iterate through the array, and return the note position if it is found.
 	if(num_current_notes == 0){
-		return NOT_IN_ARRAY;
+		return MIDI_NOT_IN_ARRAY;
 	} else {
 		for(int i=0; i<num_current_notes; i++){
 			if(current_notes[i].channel == channel && current_notes[i].note == note){
 				return i;
 			}
 		}
-		//if no note is found, return NOT_IN_ARRAY;
-		return NOT_IN_ARRAY;
+		//if no note is found, return MIDI_NOT_IN_ARRAY;
+		return MIDI_NOT_IN_ARRAY;
 	}
 }
 
@@ -1216,7 +1216,7 @@ uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 			uint64_t inflated_ratio = (uint64_t)midi_freqs[channel][adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
 		#endif
 		//and we need to divide by 1,000,000 to cancel out the inflation above to get the actual frequency we desire.
-		return inflated_ratio/CENT_FREQUENCY_RATIO_MULTIPLIER;
+		return inflated_ratio/MIDI_CENT_FREQUENCY_RATIO_MULTIPLIER;
 	}
 }
 
@@ -1235,7 +1235,7 @@ void MIDIController::recalculate_midi_freqs(uint8_t channel, int16_t offset){
 	//all the midi notes from 0-127 and recalculate their frequencies.
 	//Midi note frequencies are calculatyed based on f=440*2^(n-69)/12
 	//in our case, we replace 440 with the adjusted_A_freq_Hz variable
-	for(int n=0; n<NUM_MIDI_NOTES; n++){
+	for(int n=0; n<MIDI_NUM_NOTES; n++){
 		double converted_note_freq_Hz = adjusted_A_freq_Hz*pow(2, (n-69)/12);
 		//finally we convert from the actual frequency in Hz to the inverted
 		//frequency in us used by the rest of the code base and assign the value
@@ -1274,13 +1274,13 @@ uint8_t MIDIController::clean_1_byte_MIDI_value(int16_t value)
 void MIDIController::set_max_pitch_bend(uint8_t channel, int8_t semitones, int8_t cents)
 {
 	//do some error checking to make sure that this is vaid
-	if(semitones > MAX_PITCH_BEND_SEMITONES){
-		semitones = MAX_PITCH_BEND_SEMITONES;
+	if(semitones > MIDI_MAX_PITCH_BEND_SEMITONES){
+		semitones = MIDI_MAX_PITCH_BEND_SEMITONES;
 	} else if(semitones < 0){
 		semitones = 0;
 	}
-	if(cents > MAX_PITCH_BEND_CENTS){
-		cents = MAX_PITCH_BEND_CENTS;
+	if(cents > MIDI_MAX_PITCH_BEND_CENTS){
+		cents = MIDI_MAX_PITCH_BEND_CENTS;
 	} else if(cents < 0){
 		cents = 0;
 	}

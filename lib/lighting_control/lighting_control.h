@@ -65,15 +65,11 @@ To summarize:
 
 //this is the most animations that can be run at one time by the LightingControl object
 //save on memory by setting it as low as you can get away with.
-#define MAX_ANIMATIONS 6
-
-//this is the most LEDs a lighting controller can manage
-//usually best to set it to match your actual number of LEDs to save on memory usage.
-#define MAX_NUM_LEDS 108
+#define LC_MAX_ANIMATIONS 6
 
 //this is the most trigger events any animation can have running at a time
 //this will save a bit of memory if you reduce it, but not as much as the above two.
-#define MAX_TRIGGER_EVENTS 10
+#define LC_MAX_TRIGGER_EVENTS 10
 
 
 //this is the background mask for the bits that set a lighting mode background.
@@ -190,14 +186,14 @@ enum lc_trigger{
 };
 
 //defines to make the code more readable:
-#define POSITIVE 1
-#define STOPPED 0
-#define NEGATIVE -1
+#define LC_POSITIVE 1
+#define LC_STOPPED 0
+#define LC_NEGATIVE -1
 
-#define LEFT 0
-#define RIGHT 1
+#define LC_LEFT 0
+#define LC_RIGHT 1
 
-#define NOT_IN_ARRAY -1
+#define LC_NOT_IN_ARRAY -1
 
 #define LC_BG 1
 #define LC_FG 2
@@ -254,7 +250,7 @@ enum lc_trigger{
 #define LC_DEFAULT_SHOT_POSITION 18000
 
 //a color correction table for the neopixel color settings:
-const uint8_t PROGMEM gamma8[] = {
+const uint8_t gamma8[] = {
 	0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
 	0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,
 	1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,
@@ -278,7 +274,7 @@ const uint8_t PROGMEM gamma8[] = {
 #define FIRST_NON_OFF_COLOR 28
 
 //this is a structure for holding trigger_event animations. It will track the frames, color, and position or any trigger_events that aren't LC_TRIGGER_BG or LC_TRIGGER_FG events.
-struct TriggerEvent{
+struct LC_TriggerEvent{
 	uint8_t type;
 	int32_t total_frames;
 	int32_t current_frame;
@@ -353,7 +349,7 @@ class Animation{
 		void update_trigger_animations();
 
 		//this will add a new trigger animation to the active_triggers[] array.
-		void add_trigger_event(TriggerEvent event);
+		void add_trigger_event(LC_TriggerEvent event);
 
 		//this will remove a new trigger animation from the active_triggers[] array.
 		void clean_trigger_events();
@@ -448,7 +444,7 @@ class Animation{
 		uint16_t color_pulse_fade_out;
 
 		//this will be an array of trigger_event structures that control the animations caused by trigger_events.
-		TriggerEvent active_triggers[MAX_TRIGGER_EVENTS];
+		LC_TriggerEvent active_triggers[LC_MAX_TRIGGER_EVENTS];
 
 		//this tracks how many trigger events are currently in the active_triggers array.
 		uint16_t num_trigger_events;
@@ -490,7 +486,7 @@ class LightingControl{
 		uint8_t brightness;
 
 		//array of pointers to currently running animation objects on the LightingControl object
-		Animation * currently_running_animations[MAX_ANIMATIONS];
+		Animation * currently_running_animations[LC_MAX_ANIMATIONS];
 
 		//this tracks how many total animations are on the lighting controller
 		uint16_t num_current_animations;

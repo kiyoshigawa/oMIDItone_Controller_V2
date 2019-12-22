@@ -62,7 +62,7 @@ void Animation::init()
 	current_fg_frame = 0;
 	current_marquee_fade_frame = 0;
 	current_trigger_fade_frame = 0;
-	last_color_shot_direction = LEFT;
+	last_color_shot_direction = LC_LEFT;
 	//note trigger_events will be on a struct that tracks their frames separately from the rest of the animations
 	fg_offset = correct_offset(LC_DEFAULT_OFFSET);
 	bg_offset = correct_offset(LC_DEFAULT_OFFSET);
@@ -211,7 +211,7 @@ void Animation::trigger_event(uint8_t trigger_type)
 {
 	trigger_type = validate_lc_trigger(trigger_type);
 	//we'll need some local variables for making the trigger event that can be used in the switch statements:
-	TriggerEvent new_event;
+	LC_TriggerEvent new_event;
 	uint32_t adjusted_color;
 	//this can only happen once per frame, so it doesn't matter if you call it once or 200 times during a frame.
 	switch(trigger_type){
@@ -230,7 +230,7 @@ void Animation::trigger_event(uint8_t trigger_type)
 		new_event.offset = random(LC_MAX_OFFSET);
 		new_event.last_update = 0;
 		new_event.event_has_completed = false;
-		new_event.direction = LEFT;
+		new_event.direction = LC_LEFT;
 		add_trigger_event(new_event);
 		break;
 	case lc_trigger::color_pulse_slow_fade:
@@ -243,7 +243,7 @@ void Animation::trigger_event(uint8_t trigger_type)
 		new_event.offset = random(LC_MAX_OFFSET);
 		new_event.last_update = 0;
 		new_event.event_has_completed = false;
-		new_event.direction = LEFT;
+		new_event.direction = LC_LEFT;
 		add_trigger_event(new_event);
 		break;
 	case lc_trigger::color_pulse_rainbow:
@@ -255,7 +255,7 @@ void Animation::trigger_event(uint8_t trigger_type)
 		new_event.offset = random(LC_MAX_OFFSET);
 		new_event.last_update = 0;
 		new_event.event_has_completed = false;
-		new_event.direction = LEFT;
+		new_event.direction = LC_LEFT;
 		add_trigger_event(new_event);
 		increment_trigger_rainbow();
 		break;
@@ -311,7 +311,7 @@ void Animation::trigger_event(uint8_t trigger_type)
 		new_event.offset = 0;
 		new_event.last_update = 0; /* not needed for flashes */
 		new_event.event_has_completed = false;
-		new_event.direction = LEFT;
+		new_event.direction = LC_LEFT;
 		add_trigger_event(new_event);
 		break;
 	case lc_trigger::flash_slow_fade:
@@ -324,7 +324,7 @@ void Animation::trigger_event(uint8_t trigger_type)
 		new_event.offset = 0; /* not needed for flashes */
 		new_event.last_update = 0;
 		new_event.event_has_completed = false;
-		new_event.direction = LEFT;
+		new_event.direction = LC_LEFT;
 		add_trigger_event(new_event);
 		break;
 	case lc_trigger::flash_rainbow:
@@ -336,7 +336,7 @@ void Animation::trigger_event(uint8_t trigger_type)
 		new_event.offset = 0; /* not needed for flashes */
 		new_event.last_update = 0;
 		new_event.event_has_completed = false;
-		new_event.direction = LEFT;
+		new_event.direction = LC_LEFT;
 		add_trigger_event(new_event);
 		increment_trigger_rainbow();
 		break;
@@ -559,7 +559,7 @@ void Animation::update_trigger_animations()
 				//animate a color shot at the correct offset based on the current_frames for the event.
 
 				//for color shots, we need to calculate the offset as a proportion of the total frames relative to the starting position.
-				if(active_triggers[i].direction == LEFT){
+				if(active_triggers[i].direction == LC_LEFT){
 					active_triggers[i].offset = map(active_triggers[i].current_frame,
 													0,
 													active_triggers[i].total_frames,
@@ -639,10 +639,10 @@ void Animation::update_trigger_animations()
 	}//if num_trigger_events > 0
 }//update_trigger_animations()
 
-void Animation::add_trigger_event(TriggerEvent event)
+void Animation::add_trigger_event(LC_TriggerEvent event)
 {
 	//make sure there is room for another animation
-	if(num_trigger_events < MAX_TRIGGER_EVENTS){
+	if(num_trigger_events < LC_MAX_TRIGGER_EVENTS){
 		//add it to the end of the line, and icnrement the array.
 		active_triggers[num_trigger_events] = event;
 		num_trigger_events++;
@@ -1087,11 +1087,11 @@ int LightingControl::update()
 
 void LightingControl::add_animation(Animation * new_animation)
 {
-	if(num_current_animations < MAX_ANIMATIONS){
+	if(num_current_animations < LC_MAX_ANIMATIONS){
 		//this will need to add the animation if it is not present, and then it will still need to call an Animation::init() even if it is already present.
 		int16_t animation_position = check_animations(new_animation);
 		//if it's not already in the array.
-		if(animation_position == NOT_IN_ARRAY){
+		if(animation_position == LC_NOT_IN_ARRAY){
 			//set the note as the next item in the array.
 			currently_running_animations[num_current_animations] = new_animation;
 			num_current_animations++;
@@ -1118,7 +1118,7 @@ void LightingControl::rm_animation(Animation * animation_to_be_removed)
 {
 	//this will need to check the active animations and remove one if it is present.
 	int16_t animation_position = check_animations(animation_to_be_removed);
-	if(animation_position != NOT_IN_ARRAY){
+	if(animation_position != LC_NOT_IN_ARRAY){
 		//first turn all the leds in the animation off.
 		for(int l = 0; l<currently_running_animations[animation_position]->num_leds; l++){
 			set_corrected_color(currently_running_animations[animation_position]->led_positions[l], off);
@@ -1157,8 +1157,8 @@ int16_t LightingControl::check_animations(Animation * animation)
 			return i;
 		}
 	}
-	//if none of the above worked, return NOT_IN_ARRAY
-	return NOT_IN_ARRAY;
+	//if none of the above worked, return LC_NOT_IN_ARRAY
+	return LC_NOT_IN_ARRAY;
 }
 
 /* ----- END PRIVATE FUNCTIONS ----- */

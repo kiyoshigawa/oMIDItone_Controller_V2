@@ -57,7 +57,7 @@ uint32_t free_mem(){ // for Teensy 3.0
 #define SERVO_MAX_OFFSET 220
 
 //The next few #defines are for the Adafruit_Neopixel.h library stuff:
-#define LED_TOTAL_NUM NUM_LEDS_PER_HEAD*NUM_OMIDITONES
+#define LED_TOTAL_NUM OM_NUM_LEDS_PER_HEAD*OM_NUM_OMIDITONES
 #define LED_DATA_PIN 2
 #define LED_COLOR_ORDER NEO_GRB
 #define LED_SPEED NEO_KHZ800
@@ -124,7 +124,7 @@ const uint16_t om1_r_min = 1340;
 const uint16_t om1_r_max = om1_r_min - SERVO_MAX_OFFSET;
 const uint16_t om1_l_channel = 0;
 const uint16_t om1_r_channel = 1;
-uint16_t om1_leds[NUM_LEDS_PER_HEAD] = {12, 13, 14, 15, 16, 17, 95, 94, 93, 92, 91, 90, 84, 85, 86, 87, 88, 89};
+uint16_t om1_leds[OM_NUM_LEDS_PER_HEAD] = {12, 13, 14, 15, 16, 17, 95, 94, 93, 92, 91, 90, 84, 85, 86, 87, 88, 89};
 //Yellow Head:
 const uint16_t om2_se_pin = 33;
 const uint16_t om2_sd_pin = 25;
@@ -137,7 +137,7 @@ const uint16_t om2_r_min = 1430;
 const uint16_t om2_r_max = om1_r_min - SERVO_MAX_OFFSET;
 const uint16_t om2_l_channel = 2;
 const uint16_t om2_r_channel = 3;
-uint16_t om2_leds[NUM_LEDS_PER_HEAD] = {23, 22, 21, 20, 19, 18, 59, 58, 57, 56, 55, 54, 48, 49, 50, 51, 52, 53};
+uint16_t om2_leds[OM_NUM_LEDS_PER_HEAD] = {23, 22, 21, 20, 19, 18, 59, 58, 57, 56, 55, 54, 48, 49, 50, 51, 52, 53};
 //White Head:
 const uint16_t om3_se_pin = 24;
 const uint16_t om3_sd_pin = 30;
@@ -150,7 +150,7 @@ const uint16_t om3_r_min = 1450;
 const uint16_t om3_r_max = om1_r_min - SERVO_MAX_OFFSET;
 const uint16_t om3_l_channel = 4;
 const uint16_t om3_r_channel = 5;
-uint16_t om3_leds[NUM_LEDS_PER_HEAD] = {6, 7, 8, 9, 10, 11, 101, 100, 99, 98, 97, 96, 78, 79, 80, 81, 82, 83};
+uint16_t om3_leds[OM_NUM_LEDS_PER_HEAD] = {6, 7, 8, 9, 10, 11, 101, 100, 99, 98, 97, 96, 78, 79, 80, 81, 82, 83};
 //Black Head:
 const uint16_t om4_se_pin = 10;
 const uint16_t om4_sd_pin = 29;
@@ -163,7 +163,7 @@ const uint16_t om4_r_min = 1310;
 const uint16_t om4_r_max = om1_r_min - SERVO_MAX_OFFSET;
 const uint16_t om4_l_channel = 6;
 const uint16_t om4_r_channel = 7;
-uint16_t om4_leds[NUM_LEDS_PER_HEAD] = {29, 28, 27, 26, 25, 24, 65, 64, 63, 62, 61, 60, 42, 43, 44, 45, 46, 47};
+uint16_t om4_leds[OM_NUM_LEDS_PER_HEAD] = {29, 28, 27, 26, 25, 24, 65, 64, 63, 62, 61, 60, 42, 43, 44, 45, 46, 47};
 //Green Head:
 const uint16_t om5_se_pin = 32;
 const uint16_t om5_sd_pin = 28;
@@ -176,7 +176,7 @@ const uint16_t om5_r_min = 1420;
 const uint16_t om5_r_max = om1_r_min - SERVO_MAX_OFFSET;
 const uint16_t om5_l_channel = 8;
 const uint16_t om5_r_channel = 9;
-uint16_t om5_leds[NUM_LEDS_PER_HEAD] = {0, 1, 2, 3, 4, 5, 107, 106, 105, 104, 103, 102, 72, 73, 74, 75, 76, 77};
+uint16_t om5_leds[OM_NUM_LEDS_PER_HEAD] = {0, 1, 2, 3, 4, 5, 107, 106, 105, 104, 103, 102, 72, 73, 74, 75, 76, 77};
 //Blue Head:
 const uint16_t om6_se_pin = 31;
 const uint16_t om6_sd_pin = 27;
@@ -189,10 +189,10 @@ const uint16_t om6_r_min = 1410;
 const uint16_t om6_r_max = om1_r_min - SERVO_MAX_OFFSET;
 const uint16_t om6_l_channel = 14;
 const uint16_t om6_r_channel = 15;
-uint16_t om6_leds[NUM_LEDS_PER_HEAD] = {35, 34, 33, 32, 31, 30, 71, 70, 69, 68, 67, 66, 36, 37, 38, 39, 40, 41};
+uint16_t om6_leds[OM_NUM_LEDS_PER_HEAD] = {35, 34, 33, 32, 31, 30, 71, 70, 69, 68, 67, 66, 36, 37, 38, 39, 40, 41};
 
 //this array controls the type of notes being sent to each head on note_trigger events when they are active:
-uint16_t note_trigger_type[NUM_OMIDITONES] = {	
+uint16_t note_trigger_type[OM_NUM_OMIDITONES] = {	
 	DEFAULT_TRIGGER_MODE,
 	DEFAULT_TRIGGER_MODE,
 	DEFAULT_TRIGGER_MODE,
@@ -203,7 +203,7 @@ uint16_t note_trigger_type[NUM_OMIDITONES] = {
 
 //these are the Animation objects for the heads above - they will control the animation per-head.
 Animation om1_animation = Animation(
-	om1_leds, NUM_LEDS_PER_HEAD,
+	om1_leds, OM_NUM_LEDS_PER_HEAD,
 	(DEFAULT_BG_MODE | DEFAULT_FG_MODE),
 	rb_array[DEFAULT_OM1_BG_RAINBOW],
 	rb_array[DEFAULT_OM1_FG_RAINBOW],
@@ -211,7 +211,7 @@ Animation om1_animation = Animation(
 	LC_DEFAULT_REFRESH_RATE
 	);
 Animation om2_animation = Animation(
-	om2_leds, NUM_LEDS_PER_HEAD,
+	om2_leds, OM_NUM_LEDS_PER_HEAD,
 	(DEFAULT_BG_MODE | DEFAULT_FG_MODE),
 	rb_array[DEFAULT_OM2_BG_RAINBOW],
 	rb_array[DEFAULT_OM2_FG_RAINBOW],
@@ -219,7 +219,7 @@ Animation om2_animation = Animation(
 	LC_DEFAULT_REFRESH_RATE
 	);
 Animation om3_animation = Animation(
-	om3_leds, NUM_LEDS_PER_HEAD,
+	om3_leds, OM_NUM_LEDS_PER_HEAD,
 	(DEFAULT_BG_MODE | DEFAULT_FG_MODE),
 	rb_array[DEFAULT_OM3_BG_RAINBOW],
 	rb_array[DEFAULT_OM3_FG_RAINBOW],
@@ -227,7 +227,7 @@ Animation om3_animation = Animation(
 	LC_DEFAULT_REFRESH_RATE
 	);
 Animation om4_animation = Animation(
-	om4_leds, NUM_LEDS_PER_HEAD,
+	om4_leds, OM_NUM_LEDS_PER_HEAD,
 	(DEFAULT_BG_MODE | DEFAULT_FG_MODE),
 	rb_array[DEFAULT_OM4_BG_RAINBOW],
 	rb_array[DEFAULT_OM4_FG_RAINBOW],
@@ -235,7 +235,7 @@ Animation om4_animation = Animation(
 	LC_DEFAULT_REFRESH_RATE
 	);
 Animation om5_animation = Animation(
-	om5_leds, NUM_LEDS_PER_HEAD,
+	om5_leds, OM_NUM_LEDS_PER_HEAD,
 	(DEFAULT_BG_MODE | DEFAULT_FG_MODE),
 	rb_array[DEFAULT_OM5_BG_RAINBOW],
 	rb_array[DEFAULT_OM5_FG_RAINBOW],
@@ -243,7 +243,7 @@ Animation om5_animation = Animation(
 	LC_DEFAULT_REFRESH_RATE
 	);
 Animation om6_animation = Animation(
-	om6_leds, NUM_LEDS_PER_HEAD,
+	om6_leds, OM_NUM_LEDS_PER_HEAD,
 	(DEFAULT_BG_MODE | DEFAULT_FG_MODE),
 	rb_array[DEFAULT_OM6_BG_RAINBOW],
 	rb_array[DEFAULT_OM6_FG_RAINBOW],
@@ -263,7 +263,7 @@ elapsedMicros last_lighting_update;
 //Using SPI0 on board, MOSI0 = 11, MISO0 = 12, and SCK0 = 13, which will blink the LED as it sends.
 
 //declare the oMIDItone objects:
-oMIDItone oms[NUM_OMIDITONES] = {
+oMIDItone oms[OM_NUM_OMIDITONES] = {
 	oMIDItone(	
 		om1_se_pin, 
 		om1_sd_pin, 
@@ -374,11 +374,11 @@ void handle_cc_9_hard_reset(uint8_t channel, uint8_t cc_value)
 void handle_cc_14_pitch_correction_toggle(uint8_t channel, uint8_t cc_value)
 {
 	if(cc_value == 0){
-		for(int i=0; i<NUM_OMIDITONES; i++){
+		for(int i=0; i<OM_NUM_OMIDITONES; i++){
 			oms[i].disable_pitch_correction();
 		}
 	} else {
-		for(int i=0; i<NUM_OMIDITONES; i++){
+		for(int i=0; i<OM_NUM_OMIDITONES; i++){
 			oms[i].enable_pitch_correction();
 		}
 	}
@@ -405,11 +405,11 @@ void handle_cc_20_lighting_toggle(uint8_t channel, uint8_t cc_value)
 void handle_cc_21_servo_toggle(uint8_t channel, uint8_t cc_value)
 {
 	if(cc_value == 0){
-		for(int i=0; i<NUM_OMIDITONES; i++){
+		for(int i=0; i<OM_NUM_OMIDITONES; i++){
 			oms[i].disable_servos();
 		}
 	} else {
-		for(int i=0; i<NUM_OMIDITONES; i++){
+		for(int i=0; i<OM_NUM_OMIDITONES; i++){
 			oms[i].enable_servos();
 		}
 	}
@@ -714,29 +714,29 @@ void handle_cc_119_om6_note_trigger_type(uint8_t channel, uint8_t cc_value)
 }
 
 //this tracks which heads are free to play notes and which have alreayd been assigned a note.
-bool is_head_available_array[NUM_OMIDITONES];
+bool is_head_available_array[OM_NUM_OMIDITONES];
 
 //this tracks the note number currently being played on a head
-uint8_t head_note_array[NUM_OMIDITONES];
+uint8_t head_note_array[OM_NUM_OMIDITONES];
 
 //this tracks the channel number of the note currently being played on a head
-uint8_t head_channel_array[NUM_OMIDITONES];
+uint8_t head_channel_array[OM_NUM_OMIDITONES];
 
 //This tracks the current head so the iteration isn't always in the same place.
 int head_offset = 0;
 
 //this is an array that is sorted in the order of the least recently used heads to the most recently used heads
 //it allows for the least recently used heads to be selected first when deciding whish head will play a note
-uint8_t head_order_array[NUM_OMIDITONES];
+uint8_t head_order_array[OM_NUM_OMIDITONES];
 
 //this stores the state of the head order array until all notes are off, then it is pushed into the head order array.
-uint8_t pending_head_order_array[NUM_OMIDITONES];
+uint8_t pending_head_order_array[OM_NUM_OMIDITONES];
 
 //this function moves the head in question to the end of the head_order_array, and moves the remaining heads down.
 void pending_head_order_to_end(uint8_t head_number)
 {
 	//don't need to iterate to the last one, because if the head_number is in the last position already, we're good
-	for(int i=0; i<NUM_OMIDITONES-1; i++){
+	for(int i=0; i<OM_NUM_OMIDITONES-1; i++){
 		if(pending_head_order_array[i] == head_number){
 			//set the current position to the next head in line
 			pending_head_order_array[i] = pending_head_order_array[i+1];
@@ -752,7 +752,7 @@ void update_oMIDItones(void)
 	//check to see if a tune request was received. If so, call the init function for the heads
 	//this will take a while, so don't automate it into your MIDI files plsthx
 	if(mc.tune_request_was_received()){
-		for(int i=0; i<NUM_OMIDITONES; i++){
+		for(int i=0; i<OM_NUM_OMIDITONES; i++){
 			oms[i].init();
 		}
 	}
@@ -768,7 +768,7 @@ void update_oMIDItones(void)
 	bool note_was_removed = mc.note_was_removed();
 
 	//make sure no heads have dropped a note
-	for(int h=0; h<NUM_OMIDITONES; h++){
+	for(int h=0; h<OM_NUM_OMIDITONES; h++){
 		if(oms[h].note_was_dropped()){
 			//if a head dropped a note, we need to reassign notes:
 			note_was_added = true;
@@ -778,14 +778,14 @@ void update_oMIDItones(void)
 	//check to see if any currently playing notes have changed and update them first.
 	if(note_was_changed){
 		//check to see if a currently-playing note changed and update the head frequency.
-		for(int h=0; h<NUM_OMIDITONES; h++){
+		for(int h=0; h<OM_NUM_OMIDITONES; h++){
 			//if the head isn't playing a note, break:
 			if(oms[h].is_ready()){
 				//don't change anything
 			} else {
 				//check to see if the note the head is currently playing is no longer in the array
 				uint8_t note_position = mc.check_note(head_channel_array[h], head_note_array[h]);
-				if(note_position != NO_NOTE){
+				if(note_position != MIDI_NO_NOTE){
 					bool can_play_new_freq = oms[h].update_freq(mc.current_notes[note_position].freq);
 					if(!can_play_new_freq){
 						//if it can't play the updated frequency, force the heads to reassign all notes.
@@ -809,14 +809,14 @@ void update_oMIDItones(void)
 		//need to track how many heads have been assigned notes:
 		uint8_t num_assigned_heads = 0;
 		//we need to make all heads available and clear their current notes
-		for(int h=0; h<NUM_OMIDITONES; h++){
+		for(int h=0; h<OM_NUM_OMIDITONES; h++){
 			is_head_available_array[h] = true;
-			head_note_array[h] = NO_NOTE;
-			head_channel_array[h] = NO_CHANNEL;
+			head_note_array[h] = MIDI_NO_NOTE;
+			head_channel_array[h] = MIDI_NO_CHANNEL;
 		}
 		//if there are no notes, all heads to sound off.
 		if(mc.num_current_notes == 0){
-			for(int h=0; h<NUM_OMIDITONES; h++){
+			for(int h=0; h<OM_NUM_OMIDITONES; h++){
 				oms[head_order_array[h]].sound_off();
 				//only update the head order array if no notes are playing
 				head_order_array[h] = pending_head_order_array[h];
@@ -825,7 +825,7 @@ void update_oMIDItones(void)
 		//iterate through the mc.current_notes[] array from last to first:
 		for(int n=mc.num_current_notes-1; n>=0; n--){
 			//check each head to see if it can play the note:
-			for(int h=0; h<NUM_OMIDITONES; h++){
+			for(int h=0; h<OM_NUM_OMIDITONES; h++){
 				//if the head can play the note
 				uint8_t head = head_order_array[h];
 				if(oms[head].can_play_freq(mc.current_notes[n].freq)){
@@ -863,12 +863,12 @@ void update_oMIDItones(void)
 				}//end if can play freq
 			}//end head for loop
 			//if all heads are assigned, break the note for loop:
-			if(num_assigned_heads >= NUM_OMIDITONES){
+			if(num_assigned_heads >= OM_NUM_OMIDITONES){
 				break;
 			}
 		}//end note for loop
 		//make sure sound is off for any heads not currently assigned:
-		for(int h=0; h<NUM_OMIDITONES; h++){
+		for(int h=0; h<OM_NUM_OMIDITONES; h++){
 			if(is_head_available_array[h]){
 				oms[h].sound_off();
 			}
@@ -876,7 +876,7 @@ void update_oMIDItones(void)
 	}//if note has changed or note was removed
 
 	//update all heads every time
-	for(int h=0; h<NUM_OMIDITONES; h++){
+	for(int h=0; h<OM_NUM_OMIDITONES; h++){
 		oms[h].update();
 	}
 }
@@ -887,7 +887,7 @@ void update_lighting(void)
 	if(lighting_is_enabled){
 		int lighting_data_was_sent = lc.update();
 		if(lighting_data_was_sent == LC_STRIP_WRITTEN){
-			for(int h=0; h<NUM_OMIDITONES; h++){
+			for(int h=0; h<OM_NUM_OMIDITONES; h++){
 				oms[h].cancel_pitch_correction();
 			}
 		}
@@ -914,9 +914,9 @@ void setup(void)
 	lc.update();
 
 	//initialize the per-head stuff:
-	for(int h=0; h<NUM_OMIDITONES; h++){
-		head_note_array[h] = NO_NOTE;
-		head_channel_array[h] = NO_CHANNEL;
+	for(int h=0; h<OM_NUM_OMIDITONES; h++){
+		head_note_array[h] = MIDI_NO_NOTE;
+		head_channel_array[h] = MIDI_NO_CHANNEL;
 		head_order_array[h] = h;
 		pending_head_order_array[h] = h;
 		lc.add_animation(oms[h].animation);

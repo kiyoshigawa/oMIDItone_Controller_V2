@@ -62,97 +62,97 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 //comment this out to disable pitch debug messages
 //this will turn on or off output messages about the frequency measurements in the measure_freq() function:
-//#define PITCH_DEBUG
+//#define OM_PITCH_DEBUG
 
 //comment this out to disable verbose frequency adjustment messages for every change in frequency
-//#define PITCH_VERBOSE_DEBUG
+//#define OM_PITCH_DEBUG_VERBOSE
 
 //comment this out to disable startup test in-depth frequency printouts:
-//#define STARTUP_PITCH_MEASUREMENT_DEBUG
+//#define OM_STARTUP_PITCH_MEASUREMENT_DEBUG
 
 //this controls default state of frequency correction
-#define FREQ_CORRECTION_DEFAULT_ENABLE_STATE true
+#define OM_FREQ_CORRECTION_DEFAULT_ENABLE_STATE true
 
 //this controls default state of servos
-#define SERVO_DEFAULT_ENABLE_STATE true
+#define OM_SERVO_DEFAULT_ENABLE_STATE true
 
 //number of oMIDItones on this controller - Update as needed.
-#define NUM_OMIDITONES 6
+#define OM_NUM_OMIDITONES 6
 
 //this is a non-valid frequency value to denote that no sound should be output.
-#define NO_FREQ 0
+#define OM_NO_FREQ 0
 
 //this is how many resistance steps can be used with the digital pots. The current hardware has 2 digital pots with 256 steps each,
 //but the 50k pot is alternating every step of the 100k pot, so it adds up to 256+512 = 768 total steps.
-#define NUM_RESISTANCE_STEPS 768
+#define OM_NUM_RESISTANCE_STEPS 768
 
 //This is the analog read threshold for a rising edge to count the frequency.
-#define RISING_EDGE_THRESHOLD 50
+#define OM_RISING_EDGE_THRESHOLD 50
 
 //this is the % difference that a note can be off to trigger correction, as a number from 0-100
-#define ALLOWABLE_NOTE_ERROR 1
+#define OM_ALLOWABLE_NOTE_ERROR 1
 
 //This is the % off that a frequency reading can be before it's determined to be invalid and thrown out, as a number from 0-100:
-#define ALLOWABLE_FREQ_READING_VARIANCE 50
+#define OM_ALLOWABLE_FREQ_READING_VARIANCE 50
 
 //this is a multiplier number to check for unreasonably large frequency measurements during the initial startup test.
-#define UNREASONABLY_LARGE_MULTIPLIER 2
+#define OM_UNREASONABLY_LARGE_MULTIPLIER 2
 
 //this is to make sure that the rising edge isn't measured too often (in us):
-#define MIN_TIME_BETWEEN_RISING_EDGE_MEASUREMENTS 1
+#define OM_MIN_TIME_BETWEEN_RISING_EDGE_MEASUREMENTS 1
 
 //Time to wait between receiving a note and starting to play that note (in ms).
-#define NOTE_WAIT_TIME 3
+#define OM_NOTE_WAIT_TIME 3
 
 //this is to make sure frequency corrections are not too frequent (in ms):
-#define TIME_BETWEEN_FREQ_CORRECTIONS 20
+#define OM_TIME_BETWEEN_FREQ_CORRECTIONS 20
 
 //this is a jitter value to randomize the resistance in an attempt to counter the frequency variation around a specific resistance value. it is measured in resistance steps
-#define JITTER 1
+#define OM_JITTER 1
 
 //This is the number of rising edges to read before computing a new current average frequency.
-#define NUM_FREQ_READINGS 5
+#define OM_NUM_FREQ_READINGS 5
 
-//This forces the init to run for INIT_MULTIPLIER*NUM_FREQ_READINGS of rising edges before taking the frequency reading on init.
+//This forces the init to run for OM_INIT_MULTIPLIER*OM_NUM_FREQ_READINGS of rising edges before taking the frequency reading on init.
 //Hopefully this will reduce or remove the need for the STABILIZATION_TIME startup testing.
-#define INIT_MULTIPLIER 17
+#define OM_INIT_MULTIPLIER 20
 
 //This is how long to wait for initial frequency readings on init before declaring failure and marking the object as unavailable in ms.
 //if it sounds like things should be working, but it keeps timing out, you may need to increase this value.
-#define TIME_TO_WAIT_FOR_INIT 2000
+#define OM_TIME_TO_WAIT_FOR_INIT 2000
 
 //THis is how long to play an initial note before the startup_test sets midi_freqs. in ms
-#define TIME_TO_WAIT_FOR_STARTUP_TEST_SOUND 100
+#define OM_TIME_TO_WAIT_FOR_STARTUP_TEST_SOUND 100
 
 //This is how long to wait for a single reading to timeout. Increase if low notes are reading highter than they should. in ms
-#define NOTE_TIMEOUT 2000
+#define OM_NOTE_TIMEOUT 2000
 
 //If a frequency is measured at this or higher, it will stop incrementing resistances, as it's too high to measure.
-#define SMALLEST_VIABLE_FREQ 300
+#define OM_SMALLEST_VIABLE_FREQ 300
 
 //This is the address of the Adafruit PCA9685 servo controller used by all the servos on the project.
 //If yours has a different I2C adderess bit set, you will need to change it here.
 //Note that this code assumed a maximum of 16 servos, with only one controller that will work for all oMIDItone heads.
-#define PCA9685_ADDRESS 0x41
+#define OM_PCA9685_ADDRESS 0x41
 
 //This is for setting the base frequency of the PCA9685. By default it is 240Hz, which results in a ~1us per step pulse length
 //Don't mess with this unless you've got a very good reason for needing something other than ~1us per step.
 //All the servo max and min pulse length values assume this is set to 240Hz resulting in ~1us pulse steps.
-#define PCA9685_FREQ 240
+#define OM_PCA9685_FREQ 240
 
 //This is the OE pin for the controller board. One pin controls all the servos, so it's defined at the top of the class instead of per head.
-#define PCA9685_OE_PIN 20
+#define OM_PCA9685_OE_PIN 20
 
 //This is the number of LEDs on the WS2812 strip used for the head, including in front, back-top, and back-bottom:
-#define NUM_LEDS_PER_HEAD 18
+#define OM_NUM_LEDS_PER_HEAD 18
 
 //This is how often servo updates can be sent in us. (About 60Hz)
-#define TIME_BETWEEN_SERVO_MOVEMENTS 16
+#define OM_MIN_TIME_BETWEEN_SERVO_MOVEMENTS 16
 
 class oMIDItone {
 	public:
 		//constructor function
-		oMIDItone(uint16_t signal_enable_optoisolator, uint16_t speaker_disable_optoisolator, uint16_t cs1, uint16_t cs2, uint16_t feedback, uint16_t servo_l_channel, uint16_t servo_r_channel, uint16_t servo_l_min, uint16_t servo_l_max, uint16_t servo_r_min, uint16_t servo_r_max, uint16_t led_head_array[NUM_LEDS_PER_HEAD], Animation * head_animation);
+		oMIDItone(uint16_t signal_enable_optoisolator, uint16_t speaker_disable_optoisolator, uint16_t cs1, uint16_t cs2, uint16_t feedback, uint16_t servo_l_channel, uint16_t servo_r_channel, uint16_t servo_l_min, uint16_t servo_l_max, uint16_t servo_r_min, uint16_t servo_r_max, uint16_t led_head_array[OM_NUM_LEDS_PER_HEAD], Animation * head_animation);
 
 		//this will init the pin modes and set up Serial if it's not already running.
 		void init(void);
@@ -165,7 +165,7 @@ class oMIDItone {
 		//if the note can be played, it will begin playing immediately and return true
 		bool play_freq(uint32_t freq);
 
-		//this is basically the same as play_freq, but it won't have a NOTE_WAIT_TIME length pause before it begins playing the note.
+		//this is basically the same as play_freq, but it won't have a OM_NOTE_WAIT_TIME length pause before it begins playing the note.
 		//useful for handing pitch bends that occur after a note has begun playing
 		bool update_freq(uint32_t freq);
 
@@ -182,7 +182,7 @@ class oMIDItone {
 		//This will check if an inverted frequency (in us) can be played by an initialized oMIDItone object.
 		bool can_play_freq(uint32_t freq);
 
-		//This returns the inverted frequency in microseconds that is currently playing or NO_FREQ if no note is currently playing.
+		//This returns the inverted frequency in microseconds that is currently playing or OM_NO_FREQ if no note is currently playing.
 		uint16_t currently_playing_freq(void);
 
 		//this will let the head know that the current frequency reading is likely compromised due to external timing factors
@@ -257,15 +257,15 @@ class oMIDItone {
 		uint32_t largest_freq;
 
 		//this is an array of the most recent measured rising edge average times in us that correspond to a resistance
-		uint32_t measured_freqs[NUM_RESISTANCE_STEPS];
+		uint32_t measured_freqs[OM_NUM_RESISTANCE_STEPS];
 
-		//This is an array of the last NUM_FREQ_READINGS frequency readings for averaging purposes.
-		uint32_t recent_freqs[NUM_FREQ_READINGS];
+		//This is an array of the last OM_NUM_FREQ_READINGS frequency readings for averaging purposes.
+		uint32_t recent_freqs[OM_NUM_FREQ_READINGS];
 
-		//this is an index that will count up to NUM_FREQ_READINGS and reset to 0, triggering a frequency measurement average.
+		//this is an index that will count up to OM_NUM_FREQ_READINGS and reset to 0, triggering a frequency measurement average.
 		uint16_t freq_reading_index;
 
-		//This is a variable for storing the most recent frequency reading based on the average of the last NUM_FREQ_READINGS readings
+		//This is a variable for storing the most recent frequency reading based on the average of the last OM_NUM_FREQ_READINGS readings
 		uint32_t current_freq;
 
 		//this is a variable that stores the current desired frequency set by the play_freq() or change_freq() functions
@@ -305,7 +305,7 @@ class oMIDItone {
 		uint16_t r_max;
 
 		//this is the servo controller object that will run all the servos:
-		Adafruit_PWMServoDriver servo_controller = Adafruit_PWMServoDriver(PCA9685_ADDRESS);
+		Adafruit_PWMServoDriver servo_controller = Adafruit_PWMServoDriver(OM_PCA9685_ADDRESS);
 
 		//this stores the order of the led positions on the lighting controller that correspond to the oMIDItone head.
 		uint16_t * led_position_array;
