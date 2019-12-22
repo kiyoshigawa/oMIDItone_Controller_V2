@@ -34,6 +34,14 @@ MIDIController object. CC handling functionality can be overridden by user-
 created functions to allow maximum flexibility in how to handle the messages 
 and effects.
 
+In order for this class to work properly, it is required to repeatedly call the 
+update() function on the class object. This will parse any incoming MIDI 
+messages in the USB and Hardware MIDI buffers and update all the values. Regular
+calls to the update function in an endless loop will keep everything working. It
+is not recommended to run this class with any blocking code, as the MIDI buffers
+can overflow and message data can be lost if the update() function is not called
+often enough.
+
 Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 */

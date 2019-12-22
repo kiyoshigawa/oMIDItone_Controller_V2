@@ -112,7 +112,7 @@ void oMIDItone::init(void)
 	servo_controller.setPWM(l_channel, 0, l_min);
 	servo_controller.setPWM(r_channel, 0, r_min);
 
-	#ifdef OMIDITONE_DEBUG
+	#ifdef OM_DEBUG
 		//init Serial to allow for manual note setting in debug mode:
 		Serial.print("Debug is enabled for oMIDItone on relay pin ");
 		Serial.print(signal_enable_optoisolator_pin);
@@ -144,7 +144,7 @@ void oMIDItone::init(void)
 	//Play startup tone and save initial resistance to note values.
 	bool startup_succeeded = startup_test();
 	if(!startup_succeeded){
-		#ifdef OMIDITONE_DEBUG
+		#ifdef OM_DEBUG
 			Serial.print("Init for oMIDItone on relay pin ");
 			Serial.print(signal_enable_optoisolator_pin);
 			Serial.println(" failed.");
@@ -273,7 +273,7 @@ bool oMIDItone::startup_test(void)
 
 	//the first part is all manual control of the resistance value and the signal_enable_optoisolator_pin.
 
-	#ifdef OMIDITONE_DEBUG
+	#ifdef OM_DEBUG
 		Serial.println("Startup Test Beginning:");
 	#endif
 
@@ -389,7 +389,7 @@ bool oMIDItone::startup_test(void)
 			smallest_freq = measured_freqs[i];
 		}
 	}
-	#ifdef OMIDITONE_DEBUG
+	#ifdef OM_DEBUG
 		Serial.print("Min Measured Freq in us: ");
 		Serial.println(smallest_freq);
 		Serial.print("Max Measured Freq in us: ");
@@ -407,7 +407,7 @@ bool oMIDItone::startup_test(void)
 	//This will only happen if nothing went wrong above and the oMIDItone is ready for use.
 	//Turn the speaker output back on now that it's ready to work:
 	digitalWrite(speaker_disable_optoisolator_pin, HIGH);
-	#ifdef OMIDITONE_DEBUG
+	#ifdef OM_DEBUG
 		Serial.println("Startup test was successful!");
 	#endif
 	//and finally return true.
@@ -497,7 +497,7 @@ void oMIDItone::adjust_freq(void)
 				current_resistance = OM_JITTER;
 				//if it's bottoming out, increase the largest freq.
 				largest_freq = current_freq;
-				#ifdef OMIDITONE_DEBUG
+				#ifdef OM_DEBUG
 					Serial.print("Inverted frequency ");
 					Serial.print(current_freq);
 					Serial.print(" bottomed out on oMIDItone on relay pin");
@@ -524,7 +524,7 @@ void oMIDItone::adjust_freq(void)
 				//TIM: Disabled this because it was wrong often enough to detune the whole thing after a few incidents.
 				//the oMIDItone rarely drifts too high anyway, so it sounds better with this off.
 				//smallest_freq = current_freq;
-				#ifdef OMIDITONE_DEBUG
+				#ifdef OM_DEBUG
 					Serial.print("Inverted frequency ");
 					Serial.print(current_freq);
 					Serial.print(" topped out on oMIDItone on relay pin ");

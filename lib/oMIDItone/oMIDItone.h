@@ -1,24 +1,59 @@
 /*
-This is the oMIDItone library, to send commands to a pair of MCP4151 digital
-pots to change the tone on an otamatone.
+This is an object class designed to control an oMIDItone head using a Teensy.
+An oMIDItone head is an Otamatone that has beehn hijacked for digital control.
 
-I have set it up so there is one 100k pot, and 1 50k pot. The first 512 steps 
-oscilate the 50k pot between 0 and 1 so that I maintain the higher resolution,
-and the final 256 steps are directly modifying the 50k pot. Make sure the
-first pot pin is the 100k and the second is the 50k.
+The method of control is to replace the original pressure sensitive resistor
+in the otamatone's analog circuit with a pair of digital MCP4151 potentiometers.
+One of the pots is a 100k pot, and the other is a 50k pot. By switching the 50k
+pot back and forth over the range of the 100k pot it is possible to have a range
+from 0-150k ohms over 768 equal steps.
 
-It also has a pin for turning the sound on and off, and a pin for
-analog readings to correct the frequency being played.
+The otamatone uses a push-pull style analog oscilator to generate an output
+signal that varies from 0-4.5V. The resistance value set in the potentiometers
+determines the frequency of the oscilations. This is the R_Control resistor in
+the 'Controller PCB\Reverse Engineering Original Board\RE-otamatone\' schematic.
 
-The oMIDItone class objects will be able to be set to output a specific 
-frequency that is within the range measured during their initialization, and 
-will try to maintain that frequency as long as pitch correction is enabled and 
-they have not been requested to turn off the note.
+By digitally controlling this resistance, it is possible to control the output
+frequency of the oMIDItone head and generate any frequency within the original
+otamatone's frequency range.
 
-The class object will also keep track of the lighting animation state (even 
-though the animation triggers will be controlled externally), as well 
-as control the servos that open and close the mouth whenever the sound output
-is set to be on or off.
+
+Since the otamatone circuit is analog, the actual output frequency can vary
+significantly while it is playing, even at a constant resistance. Due to this,
+it was necessary to add a feedback mechanism to adjust the resistance to 
+maintain the desired frequency while the head is playing. This is done by 
+directly sampling the otamatone's output to the speaker and measuring the time 
+between rising edges.
+
+Upon initialization, the head will measure the frequency for every resistance
+step and populate an array of frequency values that allow it to jump to a
+specific resistance value when attempting to play a frequency. This process
+was very annoying, so a 1kohm resistor was placed in series with the speaker, 
+and a transistor was added at the negative leg of the speaker so that the signal
+could be measured across the 1k dummy load for the init measurements, while the 
+actual speaker is disabled by the transistor to keep things quiet.
+
+If the frequency varies too much, the head will automatically adjust the 
+resistance using the analog sampling feedback mechanism to maintain the desired 
+frequency. It is absolutely imperative for the update() function to be called
+in an endless loop for this functionality to work correctly. This class will
+only work in a program consisting entirely of non-blocking code that is 
+constantly calling tyhe update function for the head.
+
+It is also necessary to be able to stop the head from emitting any signal when
+no frequency is being played. This is accomplished by placing a transistor on 
+the negative leg of the digital pots before connecting it back into the 
+otamatone circuitry. While this transistor is pulled low, no current can flow
+into the otamatone board, disabling frequency generation. When it is pulled
+high, current flows normally and the analog output signal generation is enabled.
+
+The controller also supports control for 'face-grabbers' - servo motors which
+are mounted to the otamatone heads with arms that will squeeze tyhe face and 
+open the otamatone mouths whenever a frequency is playing. This is done using 
+a PCA9685 servo control board. Currently mouths can only be set to fully open or
+closed automatically depending on when a note is playing. There is a mode to 
+disable the servo animations and override them to a specific amount of openness 
+as well.
 
 Copyright 2019 - kiyoshigawa - tim@twa.ninja
 */
@@ -58,7 +93,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 
 //This prints out general debug messages for the head.
 //this includes startup test messages and messages that let you know when notes are measured out of range
-#define OMIDITONE_DEBUG
+#define OM_DEBUG
 
 //comment this out to disable pitch debug messages
 //this will turn on or off output messages about the frequency measurements in the measure_freq() function:
