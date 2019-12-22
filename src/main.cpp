@@ -1,5 +1,91 @@
 /*
 oMIDItone_Controller V2
+
+This is the code that runs the oMIDItone. The oMIDItone is an analog synthesizer
+that is built out of six heavily modified Otamatones, being controller by a 
+Teensy 3.2 and some custom hardware. Throughout these docs, I will refer to the
+individual Otamatones as 'heads', which each will have animations and are able
+to play frequencies. The comments throughout the code go over the specifics of 
+how everything works, but I will provide a general overview here:
+
+The controller can be broken down into four distinct functions, each of which
+is run by a custom library built for this project:
+1. MIDIController.h
+2. oMIDItone.h
+3. lighting_control.h
+4. main.cpp
+
+MIDIController.h:
+	This library is designed to take all incoming MIDI messages and keep a 
+	'state-of-the-MIDI' class controller object updated with a list of all
+	current playing MIDI notes and to handle any incoming MIDI CC messages as
+	needed. I've got this set up to decide not only the desired note frequencies
+	that are going to be played by the oMIDItone, but also to control lighting
+	and servo animations for the heads using MIDI CC messages. This is done 
+	through custom user-defined functions in my main.cpp file for the oMIDItone.
+
+oMIDItone.h:
+	This is the code that allows me to interface with the Otamatone's analog
+	synth hardware circuit and control it digitally. It lets me set what desired
+	frequency I want a head to play, as well as controls the mouth animation for
+	the servos on that head. It emplys the Teensy's analog pins for feedback, 
+	and it also can shut off sound to the heads when desired.
+
+lighting_control.h:
+	This controls lighting animations for an addressable LED strip that shines 
+	in front of and behind the heads. Each head has 18 LEDs assigned to it, for 
+	a total of 108 LEDs. The hardware interface is handled by the 
+	Adafruit_NeoPixel library, and the lighting controller handles 6 animations,
+	one for each head. The animations are all individually controllable with 
+	MIDI messages, and each head's animation can be configured independently.
+
+main.cpp:
+	This file ties the three main sub-libraries described above together and 
+	decides how to translate incoming MIDI messages into outputting actual 
+	sounds and lighting modes to the six heads in the project. 
+	The program runs in an entirely serial, non-blocking manner, starting with a
+	single-run setup() function that runs once on power-up or hard reset.
+
+	The setup function and all the definitions above's main purpose is to assign
+	the correct pins to the class objects so they will function, and initialize
+	everything to a default value. In the case of the oMIDItone.h, the init 
+	function contains a lengthy tuning process which will determien what 
+	frequency ranges each head is capable of playing. This also initializes the
+	USB and hardware MIDI so that the MIDIController.h class object is ready to
+	receive any incoming messages. Finally, this starts the oMIDItone with a 
+	default animation mode for every head.
+	
+	Once the hardware setup is complete, it runs a loop() function endlessly 
+	which will:
+		1. Update the MIDIController object to generate a current list of notes 
+		and handle any control messages. These drive all output of the oMIDItone
+		and without a MIDI signal being input, either via hardware or USB, the 
+		oMIDItone will not play any music.
+		2. Take the MIDI information and assign heads to play the notes based on
+		the order they were received, as well as note frequency. This will also
+		make the mouths open if the head is playing a note.
+		3. Take the MIDI information and update any lighting effects based on if
+		note triggering is enabled (creates a transient lighting effect based on
+		when a new note is added or changed), or based on CC messages 
+		specifically assigned to change lighting features.
+		4. Update the lighting controller, which will push these lighting 
+		effects to the LEDs causing them to be displayed.
+
+The oMIDItone hardware runs a custom board that is designed to connect the 
+original Otamatone analog synth PCB to a teensy and allow direct control. All 
+hardware designs of both the original baord that I reverse engineered, and my
+controller PCB that runs the oMIDItone are available in the 'Controller PCB' 
+directory of this repo.
+
+Note that the V2 hardware had some issues that I fixed manually, so making a PCB
+directly from the files provided is not advised. I plan to eventually release an
+updated hardware revision that should address these concerns, but I have not 
+gotten around to it yet, as my fixes worked and the board I have now is 
+functional enough for the project at this time.
+
+For more information on the specific outstanding hardware issues, check the main
+repo readme.md file.
+
 Copyright 2019 - kiyoshigawa - tim@twa.ninja
 */
 
