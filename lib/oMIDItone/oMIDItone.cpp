@@ -479,7 +479,7 @@ void oMIDItone::measure_freq(void)
 
 void oMIDItone::adjust_freq(void)
 {
-	//the next bit will adjust the current jittered resistance value up or down depending on how close the current_freq is to the desired frequency of the current_note, and store it in the midi_to_resistance array
+	//the next bit will adjust the current jittered resistance value up or down depending on how close the current_freq is to the desired frequency of the current_note, and store it in the MIDI_to_resistance array
 	if(last_adjust_time > OM_TIME_BETWEEN_FREQ_CORRECTIONS){
 		//this determines the allowable range that the frequency can be in to avoid triggering a retune:
 
@@ -605,7 +605,7 @@ uint16_t oMIDItone::freq_to_resistance(uint16_t freq)
 {
 	//iterate through the measured_freqs array and check for when the frequency has gone over the desired frequency by one step.
 	for(int i=OM_JITTER+2; i<OM_NUM_RESISTANCE_STEPS-OM_JITTER-2; i++){
-		//If the frequency if higher than the current note (less us) then set the midi_to_resistance value and increment the note:
+		//If the frequency if higher than the current note (less us) then set the MIDI_to_resistance value and increment the note:
 		if(measured_freqs[i] < freq){
 			return i;
 		}

@@ -31,30 +31,30 @@ MIDI_CREATE_INSTANCE(HARDWARE_MIDI_TYPE, HARDWARE_MIDI_INTERFACE, MIDI);
 
 //this an array of function pointers to the MIDI CC handler functions.
 //they can be overridden from the default values shown here by setting a new 
-//function pointer using the assign_midi_cc_handler() function.
+//function pointer using the assign_MIDI_cc_handler() function.
 extern "C"{
-cc_handler_pointer midi_cc_handler_function_array[MIDI_NUM_CC_TYPES];
+cc_handler_pointer MIDI_cc_handler_function_array[MIDI_NUM_CC_TYPES];
 
 //these are the function pointers to RPN values. They can be assigned using the 
-//assign_midi_*_pointer() functions that match the names below.
-rpn_handler_pointer midi_nrpn_absolute_handler_function_pointer;
-rpn_handler_pointer midi_nrpn_relative_handler_function_pointer;
-rpn_handler_pointer midi_rpn_absolute_handler_function_pointer;
-rpn_handler_pointer midi_rpn_relative_handler_function_pointer;
+//assign_MIDI_*_pointer() functions that match the names below.
+rpn_handler_pointer MIDI_nrpn_absolute_handler_function_pointer;
+rpn_handler_pointer MIDI_nrpn_relative_handler_function_pointer;
+rpn_handler_pointer MIDI_rpn_absolute_handler_function_pointer;
+rpn_handler_pointer MIDI_rpn_relative_handler_function_pointer;
 }
 
 MIDIController::MIDIController(void)
 {
 	//init the pointers for the MIDI CC handlers to null on creation
 	for(int i=0; i<MIDI_NUM_CC_TYPES; i++){
-		midi_cc_handler_function_array[i] = NULL;
+		MIDI_cc_handler_function_array[i] = NULL;
 	}
 
 	//init the user RPN handlers on creation
-	midi_nrpn_absolute_handler_function_pointer = NULL;
-	midi_nrpn_relative_handler_function_pointer = NULL;
-	midi_rpn_absolute_handler_function_pointer = NULL;
-	midi_rpn_relative_handler_function_pointer = NULL;
+	MIDI_nrpn_absolute_handler_function_pointer = NULL;
+	MIDI_nrpn_relative_handler_function_pointer = NULL;
+	MIDI_rpn_absolute_handler_function_pointer = NULL;
+	MIDI_rpn_relative_handler_function_pointer = NULL;
 
 	//put this into a function so that it can also be called from MIDI CC 121.
 	reset_to_default();
@@ -76,28 +76,28 @@ void MIDIController::update(void)
 	process_MIDI();
 }
 
-void MIDIController::assign_midi_cc_handler(uint8_t cc_number, cc_handler_pointer fptr)
+void MIDIController::assign_MIDI_cc_handler(uint8_t cc_number, cc_handler_pointer fptr)
 {
-	midi_cc_handler_function_array[cc_number] = fptr;
+	MIDI_cc_handler_function_array[cc_number] = fptr;
 }
 
 
-void MIDIController::assign_midi_rpn_absolute_handler(rpn_handler_pointer fptr)
+void MIDIController::assign_MIDI_rpn_absolute_handler(rpn_handler_pointer fptr)
 {
-	midi_rpn_absolute_handler_function_pointer = fptr;
+	MIDI_rpn_absolute_handler_function_pointer = fptr;
 }
 
-void MIDIController::assign_midi_rpn_relative_handler(rpn_handler_pointer fptr)
+void MIDIController::assign_MIDI_rpn_relative_handler(rpn_handler_pointer fptr)
 {
-	midi_rpn_relative_handler_function_pointer = fptr;
+	MIDI_rpn_relative_handler_function_pointer = fptr;
 }
-void MIDIController::assign_midi_nrpn_absolute_handler(rpn_handler_pointer fptr)
+void MIDIController::assign_MIDI_nrpn_absolute_handler(rpn_handler_pointer fptr)
 {
-	midi_nrpn_absolute_handler_function_pointer = fptr;
+	MIDI_nrpn_absolute_handler_function_pointer = fptr;
 }
-void MIDIController::assign_midi_nrpn_relative_handler(rpn_handler_pointer fptr)
+void MIDIController::assign_MIDI_nrpn_relative_handler(rpn_handler_pointer fptr)
 {
-	midi_nrpn_relative_handler_function_pointer = fptr;
+	MIDI_nrpn_relative_handler_function_pointer = fptr;
 }
 
 void MIDIController:: set_omni_off_receive_channel(uint8_t channel)
@@ -240,7 +240,7 @@ void MIDIController::assign_MIDI_handlers(uint8_t type, uint8_t channel, uint8_t
 		handle_aftertouch_channel(channel, data_1);
 		break;
 	case usbMIDI.PitchBend:
-		handle_pitch_bend(channel, ((data_2<<7) + data_1 - 8192));
+		handle_pitch_bend(channel, ((data_2<<7) + data_1 - MIDI_OFFSET_PITCH_BEND));
 		break;
 	case usbMIDI.TuneRequest:
 		handle_tune_request();
@@ -365,17 +365,17 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 	case MIDI_CC::rpn_msb:
 		//check to see if any of these have handlers that are not null
 		if(
-			midi_cc_handler_function_array[MIDI_CC::rpn_data_entry_msb] != NULL ||
-			midi_cc_handler_function_array[MIDI_CC::rpn_data_entry_lsb] != NULL ||
-			midi_cc_handler_function_array[MIDI_CC::data_increment] != NULL ||
-			midi_cc_handler_function_array[MIDI_CC::data_decrement] != NULL ||
-			midi_cc_handler_function_array[MIDI_CC::nrpn_lsb] != NULL ||
-			midi_cc_handler_function_array[MIDI_CC::nrpn_msb] != NULL ||
-			midi_cc_handler_function_array[MIDI_CC::rpn_lsb] != NULL ||
-			midi_cc_handler_function_array[MIDI_CC::rpn_msb] != NULL ){
+			MIDI_cc_handler_function_array[MIDI_CC::rpn_data_entry_msb] != NULL ||
+			MIDI_cc_handler_function_array[MIDI_CC::rpn_data_entry_lsb] != NULL ||
+			MIDI_cc_handler_function_array[MIDI_CC::data_increment] != NULL ||
+			MIDI_cc_handler_function_array[MIDI_CC::data_decrement] != NULL ||
+			MIDI_cc_handler_function_array[MIDI_CC::nrpn_lsb] != NULL ||
+			MIDI_cc_handler_function_array[MIDI_CC::nrpn_msb] != NULL ||
+			MIDI_cc_handler_function_array[MIDI_CC::rpn_lsb] != NULL ||
+			MIDI_cc_handler_function_array[MIDI_CC::rpn_msb] != NULL ){
 			//if a handler exists for the cc_type, call the handler
-			if(midi_cc_handler_function_array[cc_type] != NULL){
-				midi_cc_handler_function_array[cc_type](channel, cc_value);
+			if(MIDI_cc_handler_function_array[cc_type] != NULL){
+				MIDI_cc_handler_function_array[cc_type](channel, cc_value);
 			}
 		} else {
 			//see if it's an RPN or an NRPN control message and update the 
@@ -447,7 +447,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 	//as far as this controller is concerned, sound off and all notes off work the same.
 	case MIDI_CC::all_sound_off:
 	case MIDI_CC::all_notes_off:
-		if(midi_cc_handler_function_array[cc_type] != NULL){
+		if(MIDI_cc_handler_function_array[cc_type] != NULL){
 			#ifdef MIDI_DEBUG_CC
 				Serial.print("CC: ");
 				Serial.print(channel);
@@ -457,7 +457,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 				Serial.print(cc_value);
 				Serial.println(" handled by user function.");
 			#endif
-			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			MIDI_cc_handler_function_array[cc_type](channel, cc_value);
 			break;
 		}
 		//set the number of current notes to 0 immediately
@@ -471,7 +471,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 		break;
 	//this is essentially the same as a freshly init()ed controller.
 	case MIDI_CC::reset_all_controllers:
-		if(midi_cc_handler_function_array[cc_type] != NULL){
+		if(MIDI_cc_handler_function_array[cc_type] != NULL){
 			#ifdef MIDI_DEBUG_CC
 				Serial.print("CC: ");
 				Serial.print(channel);
@@ -481,7 +481,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 				Serial.print(cc_value);
 				Serial.println(" handled by user function.");
 			#endif
-			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			MIDI_cc_handler_function_array[cc_type](channel, cc_value);
 			break;
 		}
 		//reset all values to defaults
@@ -497,7 +497,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 	//this one needs to be handled by the user of the controller, so we've put 
 	//in the is_local_control_enabled() function for people who want to use this
 	case MIDI_CC::local_control_on_off:
-		if(midi_cc_handler_function_array[cc_type] != NULL){
+		if(MIDI_cc_handler_function_array[cc_type] != NULL){
 			#ifdef MIDI_DEBUG_CC
 				Serial.print("CC: ");
 				Serial.print(channel);
@@ -507,7 +507,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 				Serial.print(cc_value);
 				Serial.println(" handled by user function.");
 			#endif
-			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			MIDI_cc_handler_function_array[cc_type](channel, cc_value);
 			break;
 		}
 		if(cc_value == 0){
@@ -524,7 +524,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 		#endif
 		break;
 	case MIDI_CC::omni_mode_off:
-		if(midi_cc_handler_function_array[cc_type] != NULL){
+		if(MIDI_cc_handler_function_array[cc_type] != NULL){
 			#ifdef MIDI_DEBUG_CC
 				Serial.print("CC: ");
 				Serial.print(channel);
@@ -534,7 +534,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 				Serial.print(cc_value);
 				Serial.println(" handled by user function.");
 			#endif
-			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			MIDI_cc_handler_function_array[cc_type](channel, cc_value);
 			break;
 		}
 		omni_mode_is_enabled = false;
@@ -548,7 +548,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 		#endif
 		break;
 	case MIDI_CC::omni_mode_on:
-		if(midi_cc_handler_function_array[cc_type] != NULL){
+		if(MIDI_cc_handler_function_array[cc_type] != NULL){
 			#ifdef MIDI_DEBUG_CC
 				Serial.print("CC: ");
 				Serial.print(channel);
@@ -558,7 +558,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 				Serial.print(cc_value);
 				Serial.println(" handled by user function.");
 			#endif
-			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			MIDI_cc_handler_function_array[cc_type](channel, cc_value);
 			break;
 		}
 		omni_mode_is_enabled = true;
@@ -571,7 +571,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 		#endif
 		break;
 	case MIDI_CC::mono_mode_on:
-		if(midi_cc_handler_function_array[cc_type] != NULL){
+		if(MIDI_cc_handler_function_array[cc_type] != NULL){
 			#ifdef MIDI_DEBUG_CC
 				Serial.print("CC: ");
 				Serial.print(channel);
@@ -581,7 +581,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 				Serial.print(cc_value);
 				Serial.println(" handled by user function.");
 			#endif
-			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			MIDI_cc_handler_function_array[cc_type](channel, cc_value);
 			break;
 		}
 		poly_mode_is_enabled = false;
@@ -597,7 +597,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 		#endif
 		break;
 	case MIDI_CC::poly_mode_on:
-		if(midi_cc_handler_function_array[cc_type] != NULL){
+		if(MIDI_cc_handler_function_array[cc_type] != NULL){
 			#ifdef MIDI_DEBUG_CC
 				Serial.print("CC: ");
 				Serial.print(channel);
@@ -607,7 +607,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 				Serial.print(cc_value);
 				Serial.println(" handled by user function.");
 			#endif
-			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			MIDI_cc_handler_function_array[cc_type](channel, cc_value);
 			break;
 		}
 		poly_mode_is_enabled = true;
@@ -620,7 +620,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 		#endif
 		break;
 	default:
-		if(midi_cc_handler_function_array[cc_type] != NULL){
+		if(MIDI_cc_handler_function_array[cc_type] != NULL){
 			#ifdef MIDI_DEBUG_CC
 				Serial.print("CC: ");
 				Serial.print(channel);
@@ -630,7 +630,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 				Serial.print(cc_value);
 				Serial.println(" handled by user function.");
 			#endif
-			midi_cc_handler_function_array[cc_type](channel, cc_value);
+			MIDI_cc_handler_function_array[cc_type](channel, cc_value);
 			break;
 		}
 		#ifdef MIDI_DEBUG_CC
@@ -648,7 +648,7 @@ void MIDIController::handle_control_change(uint8_t channel, uint8_t cc_type, uin
 void MIDIController::handle_rpn_change_absolute(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t cc6_value, uint8_t cc38_value)
 {
 	//if there's a user-defined handler, call that and return without taking any default actions:
-	if(midi_rpn_absolute_handler_function_pointer != NULL){
+	if(MIDI_rpn_absolute_handler_function_pointer != NULL){
 		#ifdef MIDI_DEBUG_RPN
 			Serial.print("RPN: ");
 			Serial.print(channel);
@@ -658,7 +658,7 @@ void MIDIController::handle_rpn_change_absolute(uint8_t channel, uint8_t rpn_msb
 			Serial.print(rpn_lsb, HEX);
 			Serial.println("handled by user function.");
 		#endif
-		midi_rpn_absolute_handler_function_pointer(channel, rpn_msb, rpn_lsb, cc6_value, cc38_value);
+		MIDI_rpn_absolute_handler_function_pointer(channel, rpn_msb, rpn_lsb, cc6_value, cc38_value);
 		return;
 	} else {
 		//now we handle depending on the rpn_msb and rpn_lsb:
@@ -753,7 +753,7 @@ void MIDIController::handle_rpn_change_absolute(uint8_t channel, uint8_t rpn_msb
 void MIDIController::handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb, uint8_t rpn_lsb, uint8_t increment_or_decrement, uint8_t amount)
 {
 	//if there's a user-defined handler, call that and return without taking any default actions:
-	if(midi_rpn_relative_handler_function_pointer != NULL){
+	if(MIDI_rpn_relative_handler_function_pointer != NULL){
 		#ifdef MIDI_DEBUG_RPN
 			Serial.print("RPN: ");
 			Serial.print(channel);
@@ -763,7 +763,7 @@ void MIDIController::handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb
 			Serial.print(rpn_lsb, HEX);
 			Serial.println("handled by user function.");
 		#endif
-		midi_rpn_relative_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, increment_or_decrement, amount);
+		MIDI_rpn_relative_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, increment_or_decrement, amount);
 		return;
 	} else {
 		//now we handle depending on the rpn_msb and rpn_lsb:
@@ -876,16 +876,16 @@ void MIDIController::handle_rpn_change_relative(uint8_t channel, uint8_t rpn_msb
 void MIDIController::handle_nrpn_change_absolute(uint8_t channel, uint8_t nrpn_msb, uint8_t nrpn_lsb, uint8_t cc6_value, uint8_t cc38_value)
 {
 	//NRPNs are all user-defined, so this will only do something if a user has made a handler for it:
-	if(midi_nrpn_absolute_handler_function_pointer != NULL){
-		midi_nrpn_absolute_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, cc6_value, cc38_value);
+	if(MIDI_nrpn_absolute_handler_function_pointer != NULL){
+		MIDI_nrpn_absolute_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, cc6_value, cc38_value);
 	}
 }
 
 void MIDIController::handle_nrpn_change_relative(uint8_t channel, uint8_t nrpn_msb, uint8_t nrpn_lsb, uint8_t increment_or_decrement, uint8_t amount)
 {
 	//NRPNs are all user-defined, so this will only do something if a user has made a handler for it:
-	if(midi_nrpn_relative_handler_function_pointer != NULL){
-		midi_nrpn_relative_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, increment_or_decrement, amount);
+	if(MIDI_nrpn_relative_handler_function_pointer != NULL){
+		MIDI_nrpn_relative_handler_function_pointer(channel, nrpn_msb, nrpn_lsb, increment_or_decrement, amount);
 	}
 
 }
@@ -930,14 +930,14 @@ void MIDIController::handle_rpn_fine_tuning(uint8_t channel, uint16_t new_value)
 	//offset of -99 to +99 cents.
 	fine_tuning_offsets[channel] = map(adjusted_value, -MIDI_OFFSET_FINE_TUNING, MIDI_OFFSET_FINE_TUNING-1, -MIDI_MAX_PITCH_BEND_CENTS, MIDI_MAX_PITCH_BEND_CENTS);
 	//in the simplest case where the offsets are 0, we can just use the 
-	//A440_midi_freqs[] array to fill in the default values without spending
+	//A440_MIDI_freqs[] array to fill in the default values without spending
 	//processing power on calculations.
 	if(adjusted_value == MIDI_CENTER_FINE_TUNING && coarse_tuning_offsets[channel] == MIDI_CENTER_COARSE_TUNING){
 		for(int n=0; n<MIDI_NUM_NOTES; n++){
 			#ifdef MIDI_FORCE_GLOBAL_TUNING
-				midi_freqs[n] = A440_midi_freqs[n];
+				MIDI_freqs[n] = A440_MIDI_freqs[n];
 			#else
-				midi_freqs[channel][n] = A440_midi_freqs[n];
+				MIDI_freqs[channel][n] = A440_MIDI_freqs[n];
 			#endif
 		}
 		#ifdef MIDI_DEBUG_RPN
@@ -947,7 +947,7 @@ void MIDIController::handle_rpn_fine_tuning(uint8_t channel, uint16_t new_value)
 		return;
 	} else {
 		int16_t total_tuning_offset_in_cents = coarse_tuning_offsets[channel]*100 + fine_tuning_offsets[channel];
-		recalculate_midi_freqs(channel, total_tuning_offset_in_cents);
+		recalculate_MIDI_freqs(channel, total_tuning_offset_in_cents);
 		#ifdef MIDI_DEBUG_RPN
 			Serial.print("Fine Tuning: ");
 			Serial.print(channel);
@@ -964,14 +964,14 @@ void MIDIController::handle_rpn_coarse_tuning(uint8_t channel, uint16_t new_valu
 	//offset of -64 to +63 semitones.
 	coarse_tuning_offsets[channel] = (new_value>>7)-MIDI_OFFSET_COARSE_TUNING;
 	//in the simplest case where the offsets are 0, we can just use the 
-	//A440_midi_freqs[] array to fill in the default values without spending
+	//A440_MIDI_freqs[] array to fill in the default values without spending
 	//processing power on calculations.
 	if(coarse_tuning_offsets[channel] == MIDI_CENTER_FINE_TUNING && fine_tuning_offsets[channel] == MIDI_CENTER_FINE_TUNING){
 		for(int n=0; n<MIDI_NUM_NOTES; n++){
 			#ifdef MIDI_FORCE_GLOBAL_TUNING
-				midi_freqs[n] = A440_midi_freqs[n];
+				MIDI_freqs[n] = A440_MIDI_freqs[n];
 			#else
-				midi_freqs[channel][n] = A440_midi_freqs[n];
+				MIDI_freqs[channel][n] = A440_MIDI_freqs[n];
 			#endif
 		}
 		#ifdef MIDI_DEBUG_RPN
@@ -981,7 +981,7 @@ void MIDIController::handle_rpn_coarse_tuning(uint8_t channel, uint16_t new_valu
 		return;
 	} else {
 		int16_t total_tuning_offset_in_cents = coarse_tuning_offsets[channel]*100 + fine_tuning_offsets[channel];
-		recalculate_midi_freqs(channel, total_tuning_offset_in_cents);
+		recalculate_MIDI_freqs(channel, total_tuning_offset_in_cents);
 		#ifdef MIDI_DEBUG_RPN
 			Serial.print("Coarse Tuning: ");
 			Serial.print(channel);
@@ -1082,12 +1082,12 @@ void MIDIController::reset_to_default(void)
 		for(int i=0; i<MIDI_NUM_RPN_3D; i++){
 			rpn_3d_values[c][i] = 0; //0 is the default per MIDI specs
 		}
-		//init the midi_freqs array
+		//init the MIDI_freqs array
 		for(int i=0; i<MIDI_NUM_NOTES; i++){
 			#ifdef MIDI_FORCE_GLOBAL_TUNING
-				midi_freqs[i] = A440_midi_freqs[i];
+				MIDI_freqs[i] = A440_MIDI_freqs[i];
 			#else
-				midi_freqs[c][i] = A440_midi_freqs[i];
+				MIDI_freqs[c][i] = A440_MIDI_freqs[i];
 			#endif
 		}
 	}
@@ -1183,9 +1183,9 @@ uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 {
 	if(current_pitch_bends[channel] == MIDI_CENTER_PITCH_BEND){
 		#ifdef MIDI_FORCE_GLOBAL_TUNING
-			return midi_freqs[note];
+			return MIDI_freqs[note];
 		#else
-			return midi_freqs[channel][note];
+			return MIDI_freqs[channel][note];
 		#endif
 	} else {
 		//this takes the pitch_bend and maps it to the corresponding number of cents
@@ -1211,18 +1211,18 @@ uint32_t MIDIController::calculate_note_frequency(uint8_t channel, uint8_t note)
 		//the inflated_ratio is the frequency times the frequency adjustment ratio 2^(cents/1200) times 1,000,000.
 		//this is multiplied by 1,000,000 so we can use integer math instead of floating point math to make things speedier
 		#ifdef MIDI_FORCE_GLOBAL_TUNING
-			uint64_t inflated_ratio = (uint64_t)midi_freqs[adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
+			uint64_t inflated_ratio = (uint64_t)MIDI_freqs[adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
 		#else
-			uint64_t inflated_ratio = (uint64_t)midi_freqs[channel][adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
+			uint64_t inflated_ratio = (uint64_t)MIDI_freqs[channel][adjusted_note]*(uint64_t)cent_frequency_ratios[(uint32_t)(leftover_cents+100)];
 		#endif
 		//and we need to divide by 1,000,000 to cancel out the inflation above to get the actual frequency we desire.
 		return inflated_ratio/MIDI_CENT_FREQUENCY_RATIO_MULTIPLIER;
 	}
 }
 
-void MIDIController::recalculate_midi_freqs(uint8_t channel, int16_t offset){
+void MIDIController::recalculate_MIDI_freqs(uint8_t channel, int16_t offset){
 	//this function takes an offset in cents from the note A=440Hz and then
-	//recalculates all the midi_freqs for the channel based on the offset
+	//recalculates all the MIDI_freqs for the channel based on the offset
 	//being the new value for the note A.
 	
 	//this can take a long time if your Teensy doesn't have an MPU.
@@ -1232,17 +1232,17 @@ void MIDIController::recalculate_midi_freqs(uint8_t channel, int16_t offset){
 	double frequency_ratio = pow(2, offset/1200);
 	double adjusted_A_freq_Hz = MIDI_NOTE_A_HZ*frequency_ratio;
 	//now that we have a new base frequency for A, we need to iterate through 
-	//all the midi notes from 0-127 and recalculate their frequencies.
-	//Midi note frequencies are calculatyed based on f=440*2^(n-69)/12
+	//all the MIDI notes from 0-127 and recalculate their frequencies.
+	//MIDI note frequencies are calculatyed based on f=440*2^(n-69)/12
 	//in our case, we replace 440 with the adjusted_A_freq_Hz variable
 	for(int n=0; n<MIDI_NUM_NOTES; n++){
 		double converted_note_freq_Hz = adjusted_A_freq_Hz*pow(2, (n-69)/12);
 		//finally we convert from the actual frequency in Hz to the inverted
 		//frequency in us used by the rest of the code base and assign the value
 		#ifdef MIDI_FORCE_GLOBAL_TUNING
-			midi_freqs[n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
+			MIDI_freqs[n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
 		#else
-			midi_freqs[channel][n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
+			MIDI_freqs[channel][n] = (uint32_t)((1/converted_note_freq_Hz)*1000000);
 		#endif
 	}
 }

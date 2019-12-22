@@ -121,7 +121,7 @@ Copyright 2019 - kiyoshigawa - tim@twa.ninja
 //if it sounds like things should be working, but it keeps timing out, you may need to increase this value.
 #define OM_TIME_TO_WAIT_FOR_INIT 2000
 
-//THis is how long to play an initial note before the startup_test sets midi_freqs. in ms
+//THis is how long to play an initial note before the startup_test sets MIDI_freqs. in ms
 #define OM_TIME_TO_WAIT_FOR_STARTUP_TEST_SOUND 100
 
 //This is how long to wait for a single reading to timeout. Increase if low notes are reading highter than they should. in ms
@@ -322,10 +322,10 @@ class oMIDItone {
 		//This is a time tracker that will force a short pause between notes.
 		elapsedMillis note_start_time;
 
-		//this is to allow the oMIDItone to play a note for a bit before it sets the initial midi_freqs
+		//this is to allow the oMIDItone to play a note for a bit before it sets the initial MIDI_freqs
 		elapsedMillis startup_stabilization_began;
 
-		//this is to allow the oMIDItone to play a note for a bit before it sets the initial midi_freqs
+		//this is to allow the oMIDItone to play a note for a bit before it sets the initial MIDI_freqs
 		elapsedMillis last_freq_measurement;
 
 		//This tracks when the previous servo update ran on this head
