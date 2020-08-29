@@ -1,4 +1,4 @@
-This is a refactored and updated version of the code in the https://github.com/kiyoshigawa/oMIDItone github repo intended to simply and make faster the existing code base while simultaneously switching to PlatformIO.
+This is a refactored and updated version of the code in the https://github.com/kiyoshigawa/oMIDItone github repo intended to simplify and make faster the existing code base while simultaneously switching to PlatformIO.
 
 It is code written to run a 6-head MIDI controlled Otamatone synth, including lighting and mouth opening/closing servo animations. The project is running on a Teensy 3.2, using the arduino framework through PlatformIO, and is using the following libraries in addition to the libraries that I have written myself specifically for this project:
 https://github.com/adafruit/Adafruit_NeoPixel 
